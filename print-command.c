@@ -16,6 +16,7 @@ command_indented_print (int indent, command_t c)
     case OR_COMMAND:
     case PIPE_COMMAND:
       {
+        //printf("&& here %d\n", c->type);
 	command_indented_print (indent + 2 * (c->u.command[0]->type != c->type),
 				c->u.command[0]);
 	static char const command_label[][3] = { "&&", ";", "||", "|" };
@@ -27,6 +28,7 @@ command_indented_print (int indent, command_t c)
 
     case SIMPLE_COMMAND:
       {
+        //printf("here 2\n");
 	char **w = c->u.word;
 	printf ("%*s%s", indent, "", *w);
 	while (*++w)
@@ -35,12 +37,14 @@ command_indented_print (int indent, command_t c)
       }
 
     case SUBSHELL_COMMAND:
+      //printf("here 3\n");
       printf ("%*s(\n", indent, "");
       command_indented_print (indent + 1, c->u.subshell_command);
       printf ("\n%*s)", indent, "");
       break;
 
     default:
+    //printf("here 4\n");
       abort ();
     }
 
