@@ -67,6 +67,6 @@ main (int argc, char **argv)
 //	  execute_command (command, time_travel);
 	}
     }
-
+    cleanup(command_stream);
   return print_tree || !last_command ? 0 : command_status (last_command);
 }

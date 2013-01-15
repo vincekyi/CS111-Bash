@@ -22,8 +22,92 @@ struct command_stream {
 	cmd_node* iterator;
 };
 
+void free_cmd(command_t cmd) {
+	
+  //free input/output strings if they are not null
+  if(cmd->input!=NULL){
+    free(cmd->input);
+	}
+  if(cmd->output!=NULL){
+    free(cmd->output);
+}
+
+  //check the command type
+	//printf("type:%d", (int)cmd->type);
+  switch (cmd->type) {
+    case AND_COMMAND:
+    case SEQUENCE_COMMAND:
+    case OR_COMMAND:
+    case PIPE_COMMAND:
+    {
+        free_cmd(cmd->u.command[0]);
+        free_cmd(cmd->u.command[1]);
+        break;
+    }
+    case SUBSHELL_COMMAND:
+      free_cmd(cmd->u.subshell_command);
+      break;
+    default: //free simple command
+    {
+      char** ptr = cmd->u.word;
+      char* str = *ptr;
+      free(str);
+      free(ptr);
+      break;
+    }
+  }
+    //free the command
+    free(cmd);
+}
+
+void cleanup(command_stream_t cs) {
+
+  cs->iterator = cs->commands;
+  if(cs->commands == NULL) {
+    free(cs);
+    return;
+  }
+  //iterate through the linked list of cmd_nodes
+  cmd_node* it = cs->iterator;
+  while(it) {
+  	if(cs->commands->cmd!=NULL)
+    	free_cmd(cs->commands->cmd);
+    //save the next node and free the current node
+    cmd_node* next_node = it->next;
+    free(it); 
+    it = next_node;
+  }
+  free(cs); 
+}
+
+int check_input(char* str)
+{
+  int result = -1;
+  unsigned int i;
+  for(i=0; i < strlen(str); i++) {
+    if(str[i] == '<') {
+      result = (int)i;
+      break;
+  	}
+  }
+  return result;
+}
+
+int check_output(char* str)
+{
+  int result = -1;
+  unsigned int i;
+  for(i=0; i < strlen(str); i++) {
+    if(str[i] == '>') {
+      result = (int)i;
+      break;
+    }
+  }
+  return result;
+}
+
 void add_command(const char* command, command_t source){
-	int semi_index = -1, andor_index = -1, pipe_index = -1; input_index = -1, output_index = -1;
+	int semi_index = -1, andor_index = -1, pipe_index = -1;
 	bool next_ch_pipe = false;
 	bool next_ch_ampe = false;
 	bool par_found = false;
@@ -89,6 +173,10 @@ void add_command(const char* command, command_t source){
 		return; 
 	}
 
+	source->status = -1; //not sure what to do here
+	source->input = NULL;
+	source->output = NULL;
+	
 	if(semi_index != -1){ //semi colon found
 		//printf("Above is a SEQUENCE (at position %d) command\n", semi_index);		
 		source->type = SEQUENCE_COMMAND;
@@ -169,7 +257,6 @@ void add_command(const char* command, command_t source){
 		}
 		else{
 			source->type = SIMPLE_COMMAND;
-			char** ptr = (char**)malloc(sizeof(char*));
 
 			//find leading whitespace
 			int i;
@@ -198,20 +285,79 @@ void add_command(const char* command, command_t source){
 					}
 				}
 			}
-			*ptr = (char*) malloc(len - wsc_ - rwsc_ + 1);
-			bzero(*ptr, len - wsc_ - rwsc_ + 1);
-			memcpy(*ptr, command + wsc_, len - wsc_ - rwsc_);
-			source->u.word = ptr;
-			//printf("word:%s\n", temp_);
+			char* str = (char*) malloc(len - wsc_ - rwsc_ + 1);
+			bzero(str, len - wsc_ - rwsc_ + 1);
+			memcpy(str, command + wsc_, len - wsc_ - rwsc_);
+		
+			char* input = NULL; 
+			char* output = NULL;
+
+  			int in = check_input(str);
+  			int out = check_output(str);
+  			if(in>0 && out>0) {
+  				input = (char*) malloc(out-in);
+  				bzero(input, out-in);
+      			memcpy(input, str+in+1, out-in-1);
+				source->input = input;
+				output = (char*) malloc(strlen(str)-out);
+      			memcpy(output, str+out+1, strlen(str)-out);
+				source->output = output;
+				//create a new command
+				char** new_cmd = (char**)malloc(sizeof(char*));
+				*new_cmd = (char*)malloc(in+1);
+			  	bzero(*new_cmd, in+1);
+			    memcpy(*new_cmd, str, in);
+			    free(str);
+			    source->u.word = new_cmd;
+			    printf("input:%s\n", input);
+			    printf("output:%s\n", output);
+  			}
+			else if(in > 0) {
+				input = (char*) malloc(strlen(str)-in);
+				bzero(input, strlen(str)-in);
+      			memcpy(input, str+in+1, strlen(str)-in-1);
+				source->input = input;
+				//create a new command
+				char** new_cmd = (char**)malloc(sizeof(char*));
+				*new_cmd = (char*)malloc(in+1);
+			  	bzero(*new_cmd, in+1);
+			    memcpy(*new_cmd, str, in);
+			    free(str);
+			    source->u.word = new_cmd;
+			    printf("input:%s\n", input);
+			}
+			else if(out > 0) {
+				output = (char*) malloc(strlen(str)-out);
+				bzero(output, strlen(str)-out);
+      			memcpy(output, str+out+1, strlen(str)-out-1);
+				source->output = output;
+				//create a new command
+				char** new_cmd = (char**)malloc(sizeof(char*));
+				*new_cmd = (char*)malloc(out+1);
+			  	bzero(*new_cmd, out+1);
+			    memcpy(*new_cmd, str, out);
+			    free(str);
+			    source->u.word = new_cmd;
+			    printf("output:%s\n", output);
+			}
+			else 
+			{
+				char** ptr = (char**)malloc(sizeof(char*));
+				*ptr = str;
+				source->u.word = ptr;
+				source->input = NULL;
+				source->output = NULL;
+				printf("no input/output\n");
+			}
+
+			printf("command:%s\n", *(source->u.word));
 		}
 	}
-	source->status = -1; //not sure what to do here
-	source->input = source->output = NULL;
 	
 	//
 	//free(curr_cmd);
 	//
-};
+}
 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),

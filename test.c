@@ -11,11 +11,13 @@
 
 
 //node in the linked list of commands
-struct cmd_node {
+struct cmd_n {
   //contains a pointer to the command and the pointer to the next node
   command_t cmd;
-  cmd_node* next;
+  struct cmd_n* next;
 };
+
+typedef struct cmd_n cmd_node;
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 
@@ -28,6 +30,63 @@ command_t createCommand(char* cmd) {
   command_t newCmd;
   newCmd = (command_t) malloc(sizeof(struct command));
   return newCmd;
+}
+
+void free_cmd(command_t cmd) {
+  //free input/output strings if they are not null
+  if(cmd->input)
+    free(cmd->input);
+  if(cmd->output)
+    free(cmd->output);
+  printf("type %d\n", cmd->type);
+  //check the command type
+  switch (cmd->type) {
+    case AND_COMMAND:
+    case SEQUENCE_COMMAND:
+    case OR_COMMAND:
+    case PIPE_COMMAND:
+    {
+        free_cmd(cmd->u.command[0]);
+        free_cmd(cmd->u.command[1]);
+        break;
+    }
+    case SUBSHELL_COMMAND:
+      free_cmd(cmd->u.subshell_command);
+      break;
+    default: //free simple command
+    {
+      printf("here 5\n");
+      char** ptr = cmd->u.word;
+      char* str = *ptr;
+      free(str);
+      free(ptr);
+      break;
+    }
+  }
+    //free the command
+    free(cmd);
+}
+
+void cleanup(command_stream_t cs) {
+
+  cs->iterator = cs->commands;
+  if(cs->commands == NULL) {
+    free(cs);
+    return;
+  }
+  printf("here 1\n");
+  //iterate through the linked list of cmd_nodes
+  cmd_node* it = cs->iterator;
+  printf("here 2\n");
+  while(it) {
+    free_cmd(cs->commands->cmd);
+    printf("here 3\n");
+    //save the next node and free the current node
+    cmd_node* next_node = it->next;
+    free(it); 
+    it = next_node;
+  }
+  free(cs); 
 }
 
 //finds the index of the command that has the highest precedence
@@ -74,12 +133,13 @@ int first_prec_index(char* str) {
   return result;
 }
 
+
 void insert_into_stream(char* cmd, command_stream_t cs) {
   printf("%s\n", cmd);
   //initialization of the linked list
   //allocate memory for the new node
   cmd_node* newNode;
-  newNode = (cmd_node*) malloc(sizeof(struct cmd_node));
+  newNode = (cmd_node*) malloc(sizeof(cmd_node));
   if(cs->commands == NULL) {
     cs->commands = newNode;
     cs->iterator = newNode;
@@ -96,12 +156,7 @@ void insert_into_stream(char* cmd, command_stream_t cs) {
   cs->iterator = newNode; //increment the iterator
 }
 
-//frees all allocated memory for command_stream
-void cleanup(command_stream_t cs) {
-
-}
-
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
   if(argc != 2)
     return 1;
@@ -114,6 +169,6 @@ int main (int argc, char **argv)
   insert_into_stream(argv[1], cs);
   printf("%s\n", argv[1]);
   printf("precedence index: %d\n", first_prec_index(argv[1]));
-  free(cs);
+  cleanup(cs);
   return 0;
 }
