@@ -1,2 +1,23 @@
-hello there line1
-this is a test line2
+tar xvf sometar.tar
+grep "this is just a test" testfile
+
+find ~ -empty ||
+
+ssh -l username remote.example.com
+sed 's./.$//' filename
+
+awk '{print $2,$5;}' textfile.txt
+vim +143 file.txt
+
+vim -R openinreadonly.txt
+
+diff -w file1 file2
+
+sort file.txt
+
+ls -l &&
+
+
+pwd
+
+cd -

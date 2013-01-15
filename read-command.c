@@ -23,7 +23,7 @@ struct command_stream {
 };
 
 void add_command(const char* command, command_t source){
-	int semi_index = -1, andor_index = -1, pipe_index = -1;
+	int semi_index = -1, andor_index = -1, pipe_index = -1; input_index = -1, output_index = -1;
 	bool next_ch_pipe = false;
 	bool next_ch_ampe = false;
 	bool par_found = false;
@@ -171,10 +171,36 @@ void add_command(const char* command, command_t source){
 			source->type = SIMPLE_COMMAND;
 			char** ptr = (char**)malloc(sizeof(char*));
 
+			//find leading whitespace
+			int i;
+			int wsc_ = 0;
 			int len = strlen(command);
-			*ptr = (char*) malloc(len+1);
-			bzero(*ptr, len+1);
-			memcpy(*ptr, command, len);
+			for(i = 0; i < len; i++){
+				if( command[i] == ' '  ||
+				    command[i] == '\n' ||
+				    command[i] == '\t' ){
+					wsc_ = wsc_ + 1;	
+				}
+				else{
+					break;
+				}
+			}
+			int rwsc_ = 0;
+			if(wsc_ < len){
+				for(i = len -1; i >= 0; i--){
+					if( command[i] == ' '  ||
+					    command[i] == '\n' ||
+					    command[i] == '\t' ){
+						rwsc_ = rwsc_ + 1;	
+					}
+					else{
+						break;
+					}
+				}
+			}
+			*ptr = (char*) malloc(len - wsc_ - rwsc_ + 1);
+			bzero(*ptr, len - wsc_ - rwsc_ + 1);
+			memcpy(*ptr, command + wsc_, len - wsc_ - rwsc_);
 			source->u.word = ptr;
 			//printf("word:%s\n", temp_);
 		}
@@ -219,7 +245,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				comment_f = false;
 			}
 			if(cont_f || par_cnt != 0){
-				command[curr_size_] = ch;
+			//	command[curr_size_] = ch;
 			}
 			else {
 				if((par_cnt == 0) && (curr_size_ > 0)){
