@@ -70,8 +70,8 @@ void cleanup(command_stream_t cs) {
   //iterate through the linked list of cmd_nodes
   cmd_node* it = cs->iterator;
   while(it) {
-  	if(cs->commands->cmd!=NULL)
-    	free_cmd(cs->commands->cmd);
+  	if(it->cmd!=NULL)
+    	free_cmd(it->cmd);
     //save the next node and free the current node
     cmd_node* next_node = it->next;
     free(it); 
