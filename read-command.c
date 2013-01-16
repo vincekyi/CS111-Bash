@@ -8,7 +8,8 @@
 #include <string.h>
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
-
+static const int FORWARD = 1;
+static const int BACKWARD = 0;
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 struct cmd_n{
@@ -21,6 +22,36 @@ struct command_stream {
 	cmd_node* commands;
 	cmd_node* iterator;
 };
+
+bool isBlank(char* str) {
+	unsigned int i;
+	for(i=0; i<strlen(str); i++) {
+		if(str[i]!='\t' && str[i]!=' ')
+			return false;
+	}
+	return true;
+}
+
+//removes whitespaces
+int remove_ws(char* str, int index, int dir) {
+	int i;
+	if(dir>0) //forward direction
+	{
+		for(i=index; i<(int)strlen(str); i++) {
+			if(str[i] != ' ') {
+				break;
+			}
+		}
+	}
+	else { //backward direction
+		for(i=index; i >=0; i--) {
+			if(str[i] != ' ') {
+				break;
+			}
+		}
+	}
+	return i;
+}
 
 void free_cmd(command_t cmd) {
 	
@@ -297,48 +328,61 @@ void add_command(const char* command, command_t source){
   			if(in>0 && out>0) {
   				input = (char*) malloc(out-in);
   				bzero(input, out-in);
-      			memcpy(input, str+in+1, out-in-1);
+  				//remove whitespaces
+  				int f_ws = remove_ws(str, in+1, FORWARD);
+  				int b_ws = remove_ws(str, out-1, BACKWARD);
+
+      			memcpy(input, str+f_ws, b_ws-f_ws+1);
 				source->input = input;
+
+				int ws = remove_ws(str, out+1, FORWARD);
 				output = (char*) malloc(strlen(str)-out);
-      			memcpy(output, str+out+1, strlen(str)-out);
+      			memcpy(output, str+ws, strlen(str)-ws);
 				source->output = output;
 				//create a new command
 				char** new_cmd = (char**)malloc(sizeof(char*));
 				*new_cmd = (char*)malloc(in+1);
 			  	bzero(*new_cmd, in+1);
-			    memcpy(*new_cmd, str, in);
+			  	ws = remove_ws(str, in-1, BACKWARD);
+			    memcpy(*new_cmd, str, ws+1);
 			    free(str);
 			    source->u.word = new_cmd;
-			    printf("input:%s\n", input);
-			    printf("output:%s\n", output);
+			    //printf("input:%s\n", input);
+			    //printf("output:%s\n", output);
   			}
 			else if(in > 0) {
 				input = (char*) malloc(strlen(str)-in);
 				bzero(input, strlen(str)-in);
-      			memcpy(input, str+in+1, strlen(str)-in-1);
+				//remove whitespaces
+				int ws = remove_ws(str, in+1, FORWARD);
+      			memcpy(input, str+ws, strlen(str)-ws);
 				source->input = input;
 				//create a new command
 				char** new_cmd = (char**)malloc(sizeof(char*));
 				*new_cmd = (char*)malloc(in+1);
 			  	bzero(*new_cmd, in+1);
-			    memcpy(*new_cmd, str, in);
+			  	ws = remove_ws(str, in-1, BACKWARD);
+			    memcpy(*new_cmd, str, ws+1);
 			    free(str);
 			    source->u.word = new_cmd;
-			    printf("input:%s\n", input);
+			    //printf("input:%s\n", input);
 			}
 			else if(out > 0) {
 				output = (char*) malloc(strlen(str)-out);
 				bzero(output, strlen(str)-out);
-      			memcpy(output, str+out+1, strlen(str)-out-1);
+				//remove whitespaces
+				int ws = remove_ws(str, out+1, FORWARD);
+      			memcpy(output, str+ws, strlen(str)-ws);
 				source->output = output;
 				//create a new command
 				char** new_cmd = (char**)malloc(sizeof(char*));
 				*new_cmd = (char*)malloc(out+1);
 			  	bzero(*new_cmd, out+1);
-			    memcpy(*new_cmd, str, out);
+			  	ws = remove_ws(str, out-1, BACKWARD);
+			    memcpy(*new_cmd, str, ws+1);
 			    free(str);
 			    source->u.word = new_cmd;
-			    printf("output:%s\n", output);
+			    //printf("output:%s\n", output);
 			}
 			else 
 			{
@@ -347,10 +391,10 @@ void add_command(const char* command, command_t source){
 				source->u.word = ptr;
 				source->input = NULL;
 				source->output = NULL;
-				printf("no input/output\n");
+				//printf("no input/output\n");
 			}
 
-			printf("command:%s\n", *(source->u.word));
+			//printf("command:%s\n", *(source->u.word));
 		}
 	}
 	
@@ -390,12 +434,12 @@ make_command_stream (int (*get_next_byte) (void *),
 			if(comment_f){
 				comment_f = false;
 			}
-			if(cont_f || par_cnt != 0){
+			if(cont_f || par_cnt != 0 || isBlank(command)){
 			//	command[curr_size_] = ch;
 			}
 			else {
 				if((par_cnt == 0) && (curr_size_ > 0)){
-					//done with this commandi
+					//done with this command
 					curr_stream->iterator->next = (cmd_node*) malloc(sizeof(cmd_node));
 					curr_stream->iterator = curr_stream->iterator->next;
 					curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
