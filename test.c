@@ -172,26 +172,35 @@ int first_prec_index(char* str) {
 }
 
 
-void insert_into_stream(char* cmd, command_stream_t cs) {
-  printf("%s\n", cmd);
-  //initialization of the linked list
-  //allocate memory for the new node
-  cmd_node* newNode;
-  newNode = (cmd_node*) malloc(sizeof(cmd_node));
-  if(cs->commands == NULL) {
-    cs->commands = newNode;
-    cs->iterator = newNode;
+//returns 0 if valid, else return the line in which error occurred
+int isValid(char* str, int line) {
+  int i;
+  int result = line;
+  int len = (int)strlen(str);
+  //makes sure that the first char isnt '|' or '&'
+  if(str[0] == '|' || str[0] == '&')
+    return result;
+  for(i=0; i<len; i++) {
+    //check for valid characters
+    if(!(63<(int)str[i] && (int)str[i]<91) &&
+       !(96<(int)str[i] && (int)str[i]<123)&& str[i]!='#' &&
+       str[i]!='!' && str[i]!='%' && str[i]!='+' && 
+       str[i]!='-' && str[i]!='.' && str[i]!='/' &&
+       str[i]!=':' && str[i]!='^' && str[i]!='_' && 
+       str[i]!='|' && str[i]!='&' && str[i]!='(' &&
+       str[i]!=')' && str[i]!='<' && str[i]!='>' &&
+       str[i]!='\n' && str[i]!=' ' && str[i]!='\t') {
+      return result;
+    }
+    //cannot start with a & or | after a newline
+    if(i-1<len && str[i-1]=='\n' && (str[i] == '|' || str[i] == '&'))
+      return result;
+    //increment line number
+    if(str[i]=='\n') {
+      result++;
+    }
   }
-
-  //allocate memory for new command
-  command_t newCmd;
-  newCmd = createCommand(cmd);
-  newNode->cmd = newCmd;
-  newNode->next = NULL;
-
-  //make the current cmd_node point to the new cmd_node
-  cs->iterator->next = newNode;
-  cs->iterator = newNode; //increment the iterator
+  return 0; //no error
 }
 
 int main(int argc, char **argv)
@@ -204,9 +213,9 @@ int main(int argc, char **argv)
   cs = (command_stream_t) malloc(sizeof(struct command_stream));
   cs->commands = NULL;
   cs->iterator = NULL;
-  insert_into_stream(argv[1], cs);
+  //insert_into_stream(argv[1], cs);
   printf("%s\n", argv[1]);
-  printf("precedence index: %d\n", first_prec_index(argv[1]));
+  printf("error on line %d\n", isValid(argv[1], 1));
   cleanup(cs);
   return 0;
 }

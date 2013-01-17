@@ -10,6 +10,7 @@
    static function definitions, etc.  */
 static const int FORWARD = 1;
 static const int BACKWARD = 0;
+int LINE = 0;
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 struct cmd_n{
@@ -23,17 +24,20 @@ struct command_stream {
 	cmd_node* iterator;
 };
 
-bool isBlank(char* str) {
-	unsigned int i;
-	for(i=0; i<strlen(str); i++) {
-		if(str[i]!='\t' && str[i]!=' ')
+bool isBlank(const char* str) {
+	int i;
+	int len = strlen(str);
+	if(len == 0 || str == NULL)
+		return true;
+	for(i=0; i<len; i++) {
+		if(str[i]!='\t' && str[i]!=' ' && str[i]!='\n')
 			return false;
 	}
 	return true;
 }
 
 //removes whitespaces
-int remove_ws(char* str, int index, int dir) {
+int remove_ws(const char* str, int index, int dir) {
 	int i;
 	if(dir>0) //forward direction
 	{
@@ -52,6 +56,63 @@ int remove_ws(char* str, int index, int dir) {
 	}
 	return i;
 }
+
+//returns 0 if valid, else return the line in which error occurred
+int isValid(const char* str, int line) {
+  int i;
+  int result = line;
+  int len = (int)strlen(str);
+  int b_ws = remove_ws(str, len-1, BACKWARD);
+  int f_ws = remove_ws(str, 0, FORWARD);
+  //makes sure that the first char isnt '|' or '&'
+  if(str[b_ws] == '|' || str[b_ws] == '&' ||
+  	 str[b_ws] == '<' || str[b_ws] == '>' ||
+  	 str[f_ws] == '|' || str[f_ws] == '&' ||
+  	 str[f_ws] == '<' || str[f_ws] == '>')
+    return result;
+  for(i=0; i<len; i++) {
+    //check for valid characters
+    if(!(63<(int)str[i] && (int)str[i]<91) &&
+       !(96<(int)str[i] && (int)str[i]<123)&& str[i]!='#' &&
+       str[i]!='!' && str[i]!='%' && str[i]!='+' && 
+       str[i]!='-' && str[i]!='.' && str[i]!='/' &&
+       str[i]!=':' && str[i]!='^' && str[i]!='_' && 
+       str[i]!='|' && str[i]!='&' && str[i]!='(' &&
+       str[i]!=')' && str[i]!='<' && str[i]!='>' &&
+       str[i]!='\n' && str[i]!=' ' && str[i]!='\t') {
+      return result;
+    }
+    //cannot start with a & or | after a newline
+    if(i-1<len && str[i-1]=='\n' && (str[i] == '|' || str[i] == '&' 
+    	|| str[0] == '<' || str[0] == '>'))
+      return result;
+
+  	//check for single &
+  	if(str[i]=='&' && str[i+1]!='&')
+  		return result;
+
+  	//check for > < case
+  	if(str[i]=='>' || str[i]=='<') {
+  		int j;
+  		for(j=i+1; j<len; j++) {
+  			if(str[j]=='>' || str[j]=='<') 
+  				break;
+  		}
+  		char temp[len];
+  		strncpy(temp, str+i+1, j-i-1);
+  		temp[j-i-1] = '\0';
+  		if(isBlank(temp))
+  			return result;
+
+  	}
+    //increment line number
+    if(str[i]=='\n') {
+      result++;
+    }
+  }
+  return 0; //no error
+}
+
 
 void free_cmd(command_t cmd) {
 	
@@ -82,12 +143,15 @@ void free_cmd(command_t cmd) {
     {
       char** ptr = cmd->u.word;
       char* str = *ptr;
-      free(str);
-      free(ptr);
+      if(str!=NULL)
+      	free(str);
+      if(ptr!=NULL)
+      	free(ptr);
       break;
     }
   }
     //free the command
+  if(cmd!=NULL)
     free(cmd);
 }
 
@@ -137,7 +201,7 @@ int check_output(char* str)
   return result;
 }
 
-void add_command(const char* command, command_t source){
+void add_command(const char* command, command_t source, command_stream_t cs, bool from_make){
 	int semi_index = -1, andor_index = -1, pipe_index = -1;
 	bool next_ch_pipe = false;
 	bool next_ch_ampe = false;
@@ -146,6 +210,7 @@ void add_command(const char* command, command_t source){
 	int cmd_len = strlen(command);
 	char ch;
 	int iter = cmd_len - 1;
+	
 	//printf("this is the command we are on: %s\n", command);
 	while(iter > -1){
 		ch = command[iter];
@@ -182,6 +247,9 @@ void add_command(const char* command, command_t source){
 				}
 				next_ch_ampe = false;
 				break;
+			case '\n':
+				if(from_make){ LINE = LINE + 1; }
+				isLast = false;
 			case ' ':
 			case '\t':
 				next_ch_ampe = false;
@@ -220,8 +288,8 @@ void add_command(const char* command, command_t source){
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0]);
-		add_command(rightside, source->u.command[1]);
+		add_command(leftside, source->u.command[0], cs, false);
+		add_command(rightside, source->u.command[1], cs, false);
 	}	
 	else if(andor_index != -1){ //and or or found
 		//printf("Above is an AND/OR (at position %d) command\n", andor_index);
@@ -237,11 +305,13 @@ void add_command(const char* command, command_t source){
 		strncpy(leftside, command, andor_index);
 		leftside[andor_index] = '\0';
 		strncpy(rightside, command + andor_index + 2, cmd_len - andor_index - 1);
+		//printf("command:%s\n right:%s\n left:%s\n", command, rightside, leftside);
+		//printf("lenth of rightside is: %d", (int)strlen(rightside));
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0]);
-		add_command(rightside, source->u.command[1]);
+		add_command(leftside, source->u.command[0], cs, false);
+		add_command(rightside, source->u.command[1], cs, false);
 	
 
 
@@ -258,8 +328,8 @@ void add_command(const char* command, command_t source){
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0]);
-		add_command(rightside, source->u.command[1]);
+		add_command(leftside, source->u.command[0], cs, false);
+		add_command(rightside, source->u.command[1], cs, false);
 	
 
 	}
@@ -284,10 +354,16 @@ void add_command(const char* command, command_t source){
 			char temp[strlen(command)];
 			strncpy(temp, command + start_ + 1, finish_ - start_ - 1);
 			source->u.subshell_command = (command_t) malloc(sizeof(struct command));
-			add_command(temp, source->u.subshell_command);
+			add_command(temp, source->u.subshell_command, cs, false);
 		}
 		else{
 			source->type = SIMPLE_COMMAND;
+			//check for validity
+			if(isValid(command, 1)!=0 || isBlank(command)) {
+				fprintf(stderr, "%d: Syntax Error\n", LINE);
+				//cleanup(cs);
+				exit(1);
+			}
 
 			//find leading whitespace
 			int i;
@@ -433,12 +509,13 @@ make_command_stream (int (*get_next_byte) (void *),
 		if(ch == '\n'){
 			if(comment_f){
 				comment_f = false;
+				LINE = LINE + 1;
 			}
-			if(cont_f || par_cnt != 0){
+			else if(cont_f || par_cnt != 0){
 				command[curr_size_] = ch;
 			}
 			else if(isBlank(command)) {
-
+				LINE = LINE + 1;
 			}
 			else {
 				if((par_cnt == 0) && (curr_size_ > 0)){
@@ -446,7 +523,8 @@ make_command_stream (int (*get_next_byte) (void *),
 					curr_stream->iterator->next = (cmd_node*) malloc(sizeof(cmd_node));
 					curr_stream->iterator = curr_stream->iterator->next;
 					curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
-					add_command(command, curr_stream->iterator->cmd);
+					LINE = LINE + 1;
+					add_command(command, curr_stream->iterator->cmd, curr_stream, true);
 					bzero(command,5000000);
 				}
 			}//empty string could be passed to kyi?
@@ -491,10 +569,16 @@ make_command_stream (int (*get_next_byte) (void *),
 	if(strlen(command) > 0){
 		//printf("THIS IS USED\n");
 		//done with this command
+		if(par_cnt!=0) {
+			//fprintf(stderr, "%d: Syntax Error\n", LINE);
+			cleanup(curr_stream);
+			exit(1);
+		}
 		curr_stream->iterator->next = (cmd_node*) malloc(sizeof(cmd_node));
 		curr_stream->iterator = curr_stream->iterator->next;
 		curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
-		add_command(command, curr_stream->iterator->cmd);
+		LINE = LINE + 1;
+		add_command(command, curr_stream->iterator->cmd, curr_stream, true);
 	} 
 //printf("%s\n", command);
 // error (1, 0, "command reading not yet implemented");
@@ -523,5 +607,6 @@ if(s==NULL)
 		//printf("read_cs\n");
 		return cmd;
 	}
+	printf("Lines %d\n", LINE);
 	return NULL;
 }
