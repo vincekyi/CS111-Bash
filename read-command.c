@@ -434,8 +434,11 @@ make_command_stream (int (*get_next_byte) (void *),
 			if(comment_f){
 				comment_f = false;
 			}
-			if(cont_f || par_cnt != 0 || isBlank(command)){
-			//	command[curr_size_] = ch;
+			if(cont_f || par_cnt != 0){
+				command[curr_size_] = ch;
+			}
+			else if(isBlank(command)) {
+
 			}
 			else {
 				if((par_cnt == 0) && (curr_size_ > 0)){

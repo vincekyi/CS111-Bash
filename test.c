@@ -32,6 +32,44 @@ command_t createCommand(char* cmd) {
   return newCmd;
 }
 
+//return 0 if no errors, else returns the line number if there is an error
+int check_consec(char* str) {
+  int line = 1; //keep track of the line number
+  unsigned int i;
+  int len = strlen(str);
+  for(i=0; i<len; i++) {
+    switch(str[i]) {
+      case '&':
+        if(i+1<len && i+2<len &&
+          str[i+1]=='&' && str[i+2]=='&') {
+          return line;
+        }
+        //cannot have just one &
+        if(i+1<len && str[i+1]!='&') {
+          return line;
+        }
+        break;
+      case '|':
+        if(i+1<len && i+2<len &&
+          str[i+1]=='|' && str[i+2]=='|') {
+          return line;
+        }
+        break;
+      case '<':
+        if(i+1<len && str[i+1]=='<') {
+          return line;
+        }
+        break;
+      case '>':
+        break;
+      case '\n':
+        line++;
+        break;
+    }
+  }
+  return 0;
+}
+
 void free_cmd(command_t cmd) {
   //free input/output strings if they are not null
   if(cmd->input)
