@@ -42,10 +42,8 @@ for bad in \
   '&& a' \
   '||a' \
   '(a|b' \
-  'a;b
-  )' \
-  '( (a)
-    ' \
+  'a;b)' \
+  '( (a)' \
   'a>>>b'
 do
   echo "$bad" >test$n.sh || exit
