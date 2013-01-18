@@ -11,7 +11,7 @@
 static const int FORWARD = 1;
 static const int BACKWARD = 0;
 int LINE = 1;
-int curr_line_count = 1;
+int curr_line_count = 0;
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 //node that is part of a linked list
@@ -130,6 +130,7 @@ int isValid(const char* str, int line) {
   	}
     //increment line number
     if(str[i]=='\n') {
+	curr_line_count = curr_line_count + 1;
       result++;
     }
   }
@@ -283,9 +284,10 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				break;
 			case '\n':
 				if(from_make){
-			//		line_count = line_count + 1;
-					 LINE = LINE + 1; }
-					line_count++;
+					line_count = line_count + 1;
+					 //LINE = LINE + 1;
+					  }
+				//line_count++;
 				isLast = false;
 			case ' ':
 			case '\t':
@@ -408,10 +410,10 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				if(err == 0)
 				{
 					//printf("command: %s\n", command);
-					fprintf(stderr, "%d: Syntaax Error\n", LINE-line_count);
+					fprintf(stderr, "%d: Syntaax Error\n", LINE);
 				}
 				else
-					fprintf(stderr, "%d: Syntaxx Error\n", err);
+					fprintf(stderr, "%d: Syntaxx Error\n", LINE+ curr_line_count);
 				cleanup(cs);
 				exit(1);
 			}
@@ -524,11 +526,15 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 			//printf("command:%s\n", *(source->u.word));
 		}
 	}
-	if(from_make)
-		LINE++;
+	
+	if(from_make){
+		LINE = LINE + line_count + 1;
+		curr_line_count = 0;
+	}
 	//
 	//free(curr_cmd);
 	//
+	
 }
 
 command_stream_t
