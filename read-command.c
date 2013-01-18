@@ -11,6 +11,7 @@
 static const int FORWARD = 1;
 static const int BACKWARD = 0;
 int LINE = 1;
+int curr_line_count = 1;
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 //node that is part of a linked list
@@ -60,9 +61,26 @@ int remove_ws(const char* str, int index, int dir) {
 	return i;
 }
 
+
+
+int countLinesAfter(const char* str, int start_index){
+	if(str == NULL) return 0;
+	int len = strlen(str);
+	if(start_index < 0 || len <= start_index) return 0;
+	int i = start_index;
+	int nl_count = 0;
+	while(i < len){
+		if(str[i] == '\n') nl_count = nl_count + 1;
+		i = i + 1;
+	}
+//	printf("number of newlines found: %d\nthis was the offending command: %s\n", nl_count, str);
+	return nl_count;
+}
+
+
 //returns 0 if valid, else return the line in which error occurred
 int isValid(const char* str, int line) {
-  int i;
+  int i = 0;
   int result = line;
   int len = (int)strlen(str);
   int b_ws = remove_ws(str, len-1, BACKWARD);
@@ -231,7 +249,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 		switch(ch){ //how to deal with redirects???
 			    //how to deal with subshells?
 			case ';':
-				if((!isLast) && semi_index == -1){
+				if(((!isLast) && semi_index == -1) && !(o_in<iter && iter<c_in)){
 					semi_index = iter;
 				}
 				next_ch_ampe = false;
@@ -239,7 +257,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				break;
 			case '&':
 				isLast = false;
-				if( (andor_index == -1) && next_ch_ampe){
+				if(( (andor_index == -1) && next_ch_ampe) && !(o_in<iter && iter<c_in)
+						){
 					andor_index = iter;
 				}
 				else {
@@ -249,10 +268,11 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				break;
 			case '|':
 				isLast = false;
-				if(pipe_index == -1){
+				if(pipe_index == -1  && !(o_in<iter && iter<c_in)){
 					pipe_index = iter;
 				}
-				if( (andor_index == -1) && next_ch_pipe){
+				if(( (andor_index == -1) && next_ch_pipe) && !(o_in<iter && iter<c_in))
+					{
 					andor_index = iter;
 					pipe_index = -1;
 				}
@@ -262,8 +282,10 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_ampe = false;
 				break;
 			case '\n':
-				if(from_make){ LINE = LINE + 1; }
-				line_count++;
+				if(from_make){
+			//		line_count = line_count + 1;
+					 LINE = LINE + 1; }
+					line_count++;
 				isLast = false;
 			case ' ':
 			case '\t':
@@ -271,9 +293,10 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_pipe = false;
 				break;
 			case ')':
-				if(c_in==-1)
+				if(c_in==-1 || (o_in > iter))
 				{
 					c_in = iter;
+					o_in = 0;
 					int count_ = 1;
 					int k = iter-1;
 					for(; k >= 0; k--){
@@ -335,7 +358,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 		strncpy(rightside, command + andor_index + 2, cmd_len - andor_index - 1);
 		//printf("Line:%d, command:%s\n right:%s\n left:%s\n", LINE, command, rightside, leftside);
 		//printf("lenth of rightside is: %d", (int)strlen(rightside));
-
+	//	printf("leftside is: %s\n THIS IS AN AND/OR\nrightside is: %s\n", leftside, rightside);
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
 		add_command(leftside, source->u.command[0], cs, false);
@@ -380,6 +403,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 			source->u.word = NULL;
 			//check for validity
 			int err = isValid(command, LINE);
+		//	printf("line %d: %s\n", LINE, command);
 			if(err!=0 || isBlank(command)) {
 				if(err == 0)
 				{
@@ -608,7 +632,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		//LINE = LINE + 1;
 		add_command(command, curr_stream->iterator->cmd, curr_stream, true);
 	} 
-	printf("Total Lines: %d\n", LINE);
+//	printf("Total Lines: %d\n", LINE);
 //printf("%s\n", command);
 // error (1, 0, "command reading not yet implemented");
 	curr_stream->iterator = curr_stream->commands->next;
