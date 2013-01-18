@@ -410,10 +410,10 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				if(err == 0)
 				{
 					//printf("command: %s\n", command);
-					fprintf(stderr, "%d: Syntaax Error\n", LINE);
+					fprintf(stderr, "%d: Syntax Error\n", LINE+curr_line_count);
 				}
 				else
-					fprintf(stderr, "%d: Syntaxx Error\n", LINE+ curr_line_count);
+					fprintf(stderr, "%d: Syntax Error\n", LINE+ curr_line_count);
 				cleanup(cs);
 				exit(1);
 			}
