@@ -4,18 +4,20 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
-int main (int argc, char **argv) {
+int executeCommand(char* command, char* output) {
+	char* term = strtok(command, " ");
 
-	if(argc != 2)
-    	return 1;	
-
-    char* term = strtok(argv[1], " ");
-
+    int fp = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    int orig = dup(1);
+    dup2(fp, 1);
+    //close(fp);
     pid_t p = fork();
     if(p==0){ //child
     	char* file = term;
-    	char** arr; 
+    	char* arr[100]; 
     	int i = 0;
     	while(term!=NULL) {
     		arr[i] = term;
@@ -30,21 +32,38 @@ int main (int argc, char **argv) {
 	    	printf("%s\n", arr[j]);
     	}
     	*/
-    	sleep(2);
+    	//close(1);
+    	sleep(1);
     	execvp(file, arr);
-    	printf("command failed\n");
     }
     else{
+    	close(fp);
+    	dup2(orig, 1);
     	int status;
-    	printf("main process\n");
     	if(waitpid(p, &status, 0)<0) {
-    		printf("error\n");
-    		return 1;
+    		return -1;
     	}
     	if(WIFEXITED(status)) {
     		kill(p, SIGKILL);
     	}
     }
+    return 0;
+}
+
+
+int main (int argc, char **argv) {
+
+	if(argc != 2)
+    	return 1;	
+    char* output = "out";
+
+   if(executeCommand(argv[1], output)==0) {
+   		printf("Correct\n");
+   }
+   else {
+   		printf("Incorrect\n");
+   }
+
 
 	/*
 	pid_t p = fork();
