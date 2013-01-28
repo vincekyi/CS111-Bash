@@ -63,8 +63,8 @@ main (int argc, char **argv)
 	}
       else
 	{
-	  last_command = command;
-//	  execute_command (command, time_travel);
+//	  last_command = command;
+	  execute_command(command, time_travel);
 	}
     }
     cleanup(command_stream);

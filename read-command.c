@@ -96,7 +96,7 @@ int isValid(const char* str, int line) {
     if(!(63<(int)str[i] && (int)str[i]<91) &&
        !(96<(int)str[i] && (int)str[i]<123)&& 
        !(47<(int)str[i] && (int)str[i]<58) && 
-       str[i]!='#' && str[i]!=',' &&
+       str[i]!='#' && str[i]!=',' && str[i]!=';' &&
        str[i]!='!' && str[i]!='%' && str[i]!='+' && 
        str[i]!='-' && str[i]!='.' && str[i]!='/' &&
        str[i]!=':' && str[i]!='^' && str[i]!='_' && 

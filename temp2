@@ -1,0 +1,6 @@
+echo see || echo dont
+echo show && echo showup
+lala && echo dontshow
+((lalala) || 
+echo showthis)
+
