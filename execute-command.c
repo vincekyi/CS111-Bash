@@ -162,8 +162,9 @@ int execute(char* command, char* input, char* output) {
     if(input != NULL) {
       int fd = open(input, O_RDONLY);
       if(fd < 0) {
-        //print error saying file doesnt exist
-      }
+       printf("couldnt open file\n");
+	return 0;
+	}
       dup2(fd, 0);
     }
     if(output != NULL) { 
@@ -184,7 +185,8 @@ int execute(char* command, char* input, char* output) {
     	arr[i]=NULL;
 
     	execvp(file, arr);
-		  _exit(FAIL);
+	printf("error with command on some line\n");	
+	  _exit(FAIL);
     }
     else{
       if(fp != -1){
