@@ -1,6 +1,11 @@
+#!/bin/sh
+
 echo see || echo dont
 echo show && echo showup
 lala && echo dontshow
 ((lalala) || 
 echo showthis)
-
+echo
+echo
+sort <a
+#sort a | cat b - | sort -r |cat a - | cat b -

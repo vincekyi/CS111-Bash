@@ -23,7 +23,7 @@ int command_status (command_t c)
   return c->status;
 }
 
-int execute(char* command, char* output);
+int execute(char* command, char* input, char* output);
  
 void execute_command (command_t c, bool time_travel) {
   /* FIXME: Replace this with your implementation.  You may need to
@@ -86,6 +86,7 @@ static int execute_normally(command_t c){
               close(fd[0]);
 
               //check for error
+              
               int status;
               if(waitpid(p, &status, 0)<0) 
                   return 0;
@@ -94,6 +95,7 @@ static int execute_normally(command_t c){
                   kill(p, SIGKILL);
                   return 0;    
               }
+
               //printf("%s\n", right);
               //execute command
               char* term = strtok(*(c->u.command[1]->u.word), " ");
@@ -130,8 +132,8 @@ static int execute_normally(command_t c){
     case SIMPLE_COMMAND:
     {
 	     //execute c->u.word which is a char **
-	     printf("Will execute this: %s\n",*c->u.word);
-	     return execute(*c->u.word, c->output);
+	     //printf("Will execute this: %s\n",*c->u.word);
+	     return execute(*c->u.word, c->input, c->output);
     }
     case SUBSHELL_COMMAND: 
     {      
@@ -151,12 +153,19 @@ static int execute_normally(command_t c){
 
 
 
-int execute(char* command, char* output) {
+int execute(char* command, char* input, char* output) {
     if(command == NULL) { return 0; }
 	  char* term = strtok(command, " ");
  
     int orig = dup(1);
     int fp = -1;
+    if(input != NULL) {
+      int fd = open(input, O_RDONLY);
+      if(fd < 0) {
+        //print error saying file doesnt exist
+      }
+      dup2(fd, 0);
+    }
     if(output != NULL) { 
  	    fp = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 
