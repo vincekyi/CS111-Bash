@@ -132,13 +132,37 @@ static int execute_normally(command_t c){
     case SIMPLE_COMMAND:
     {
 	     //execute c->u.word which is a char **
-	     //printf("Will execute this: %s\n",*c->u.word);
-	     return execute(*c->u.word, c->input, c->output);
-    }
+	     //printf("Will execute this: %s\n",*c->u.word);i
+
+		return execute(*c->u.word, c->input, c->output);
+}
+
     case SUBSHELL_COMMAND: 
     {      
-	     return execute_normally(c->u.subshell_command);
-    }
+	     pid_t sp = fork();
+	     if(sp == 0){
+		
+		if(0 == execute_normally(c->u.subshell_command)){
+			_exit(FAIL);
+		}
+		else {
+			_exit(987);
+	     }
+		}
+	     else{
+		int status;
+		if(waitpid(sp, &status, 0)<0)
+			return 0;
+		if(WEXITSTATUS(status) == FAIL){
+			kill(sp, SIGKILL);
+			return 0;
+		}
+		kill(sp, SIGKILL);
+		return 1;
+
+        	}
+   	 
+	}
     default:
         abort ();
     }
@@ -155,7 +179,7 @@ static int execute_normally(command_t c){
 
 int execute(char* command, char* input, char* output) {
     if(command == NULL) { return 0; }
-	  char* term = strtok(command, " ");
+  char* term = strtok(command, " ");
  
     int orig = dup(1);
     int fp = -1;
@@ -172,19 +196,33 @@ int execute(char* command, char* input, char* output) {
 
 	    dup2(fp, 1);
     }
-    pid_t p = fork();
+    pid_t p = 0;
+    char temp[5];
+    strncpy(temp, command,4);
+    temp[4] = '\0';
+//	printf("%s\n", temp);
+    if(0 != strcmp("exec",temp)){ 
+  //     printf("asdfjalsfjkafdslkjas\n");
+	 p = fork();}
     if(p==0){ //child
-    	char* file = term;
     	char* arr[100]; 
     	int i = 0;
     	while(term!=NULL) {
-    		arr[i] = term;
-    		term = strtok(NULL, " ");
-    		i++;
+		if(i == 0 && 0 == strcmp(term, "exec")){ ;}
+		else{
+    			arr[i] = term;
+			i++;
+		}
+
+		term = strtok(NULL, " ");
     	}
     	arr[i]=NULL;
-
-    	execvp(file, arr);
+//	int N = i;
+//	for(i = 0; i < N; i++)
+//		printf("%s ",arr[i]);
+//
+//	printf("\n");
+    	execvp(arr[0], arr);
 	printf("error with command on some line\n");	
 	  _exit(FAIL);
     }
