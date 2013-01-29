@@ -8,4 +8,14 @@ echo showthis)
 echo
 echo
 sort <a
-#sort a | cat b - | sort -r |cat a - | cat b -
+sort a | cat b - | sort -r |cats a - | cat b -
+see 
+(exec echo hello || echo h) && echo bye
+sleep 1
+sort a | cat b - | sort -r |cat a - | cat b -
+
+sort a | cat b -
+ssort a | cats b -
+
+exec echo done
+sleep 1

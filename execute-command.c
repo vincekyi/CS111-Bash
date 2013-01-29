@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <error.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -70,15 +71,18 @@ static int execute_normally(command_t c){
         if(p1==0) {//child  
           int fd[2];
 
-          pipe(fd);
+          if(pipe(fd)<0)
+            error(FAIL, 0, "Failed to create pipe.");
           //printf("%s | %s\n", left, right);
           pid_t p = fork();
           if(p==0) { //child
               close(fd[0]); //close fd thats not being used 
               dup2(fd[1], 1); //duplicate fd1 to stdout
               close(fd[1]);
-              if(!execute_normally(c->u.command[0]))
+              if(!execute_normally(c->u.command[0])) {
                 exit(FAIL);
+              }
+              exit(1);
           }
           else { //parent process
               close(fd[1]);
@@ -88,14 +92,15 @@ static int execute_normally(command_t c){
               //check for error
               
               int status;
-              if(waitpid(p, &status, 0)<0) 
-                  return 0;
+              if(waitpid(p, &status, 0)<0) { 
+                  exit(FAIL);
+              }
             
               if(WEXITSTATUS(status) == FAIL ) {
                   kill(p, SIGKILL);
-                  return 0;    
+                  exit(FAIL);
               }
-
+              kill(p, SIGKILL);
               //printf("%s\n", right);
               //execute command
               char* term = strtok(*(c->u.command[1]->u.word), " ");
@@ -111,14 +116,17 @@ static int execute_normally(command_t c){
 
               //sleep(1);
               execvp(file, arr);
+              error(FAIL, 0, "Failed on pipe command: |%s", *(c->u.command[1]->u.word) );
               exit(FAIL);
           }
+          exit(1);
         }
-        else { //parent
+        else { //grandparent
               //check for error
               int status;
-              if(waitpid(p1, &status, 0)<0) 
+              if(waitpid(p1, &status, 0)<0) {
                   return 0;
+              }
             
               if(WEXITSTATUS(status) == FAIL ) {
                   kill(p1, SIGKILL);
@@ -135,20 +143,20 @@ static int execute_normally(command_t c){
 	     //printf("Will execute this: %s\n",*c->u.word);i
 
 		return execute(*c->u.word, c->input, c->output);
-}
+    }
 
     case SUBSHELL_COMMAND: 
     {      
-	     pid_t sp = fork();
-	     if(sp == 0){
+	    pid_t sp = fork();
+	    if(sp == 0){
 		
-		if(0 == execute_normally(c->u.subshell_command)){
-			_exit(FAIL);
-		}
-		else {
-			_exit(987);
-	     }
-		}
+  		if(0 == execute_normally(c->u.subshell_command)){
+  			_exit(FAIL);
+  		}
+  		else {
+  			_exit(987);
+  	     }
+  		}
 	     else{
 		int status;
 		if(waitpid(sp, &status, 0)<0)
@@ -179,52 +187,52 @@ static int execute_normally(command_t c){
 
 int execute(char* command, char* input, char* output) {
     if(command == NULL) { return 0; }
-  char* term = strtok(command, " ");
+    char* term = strtok(command, " ");
  
     int orig = dup(1);
     int fp = -1;
     if(input != NULL) {
       int fd = open(input, O_RDONLY);
       if(fd < 0) {
-       printf("couldnt open file\n");
-	return 0;
-	}
+          error(0, 0, "Failed to open file: %s\n", input);
+  	      return 0;
+  	  }
       dup2(fd, 0);
     }
     if(output != NULL) { 
  	    fp = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-
+      if(fp < 0) {
+          error(0, 0, "Failed to open file: %s\n", output);
+          return 0;
+      }
 	    dup2(fp, 1);
     }
     pid_t p = 0;
     char temp[5];
     strncpy(temp, command,4);
     temp[4] = '\0';
-//	printf("%s\n", temp);
+    //check if it is an exec command
     if(0 != strcmp("exec",temp)){ 
-  //     printf("asdfjalsfjkafdslkjas\n");
-	 p = fork();}
+	     p = fork();
+    }
+
     if(p==0){ //child
     	char* arr[100]; 
     	int i = 0;
     	while(term!=NULL) {
-		if(i == 0 && 0 == strcmp(term, "exec")){ ;}
-		else{
+		    if(i == 0 && 0 == strcmp(term, "exec")){ 
+        }
+		    else{
     			arr[i] = term;
-			i++;
-		}
-
-		term = strtok(NULL, " ");
+			    i++;
+		    }
+		    term = strtok(NULL, " ");
     	}
     	arr[i]=NULL;
-//	int N = i;
-//	for(i = 0; i < N; i++)
-//		printf("%s ",arr[i]);
-//
-//	printf("\n");
+
     	execvp(arr[0], arr);
-	printf("error with command on some line\n");	
-	  _exit(FAIL);
+	    error(FAIL, 0, "Command failed: %s", command);
+	    exit(FAIL);
     }
     else{
       if(fp != -1){
