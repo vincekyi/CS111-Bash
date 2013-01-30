@@ -34,7 +34,7 @@ bool isBlank(const char* str) {
 	if(len == 0 || str == NULL)
 		return true;
 	for(i=0; i<len; i++) {
-		if(str[i]!='\t' && str[i]!=' ' && str[i]!='\n')
+		if(str[i]!='\t' && str[i]!=' ' && str[i]!='\n' && str[i]!=';')
 			return false;
 	}
 	return true;
@@ -251,6 +251,11 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 		switch(ch){ //how to deal with redirects???
 			    //how to deal with subshells?
 			case ';':
+				if(isLast && !from_make){
+					fprintf(stderr, "%d: Syntax Error\n", LINE+ curr_line_count);
+					cleanup(cs);
+					exit(1);
+				}
 				if(((!isLast) && semi_index == -1) && !(o_in<iter && iter<c_in)){
 					semi_index = iter;
 				}
@@ -405,6 +410,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 			source->type = SIMPLE_COMMAND;
 			source->u.word = NULL;
 			//check for validity
+		//	printf("command: %s\n", command);
 			int err = isValid(command, LINE);
 		//	printf("line %d: %s\n", LINE, command);
 			if(err!=0 || isBlank(command)) {
