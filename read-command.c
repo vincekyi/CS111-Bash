@@ -234,12 +234,14 @@ int check_output(char* str)
   return result;
 }
 
-void add_command(const char* command, command_t source, command_stream_t cs, bool from_make){
+void add_command(const char* command, command_t source, command_stream_t cs, bool from_make, bool from_subshell){
 	int line_count = 0;
+	if(from_subshell){}
 	int semi_index = -1, andor_index = -1, pipe_index = -1;
 	int o_in = -1, c_in = -1;
 	bool next_ch_pipe = false;
 	bool next_ch_ampe = false;
+	bool next_ch_cp = false;
 	bool isLast = true;
 	int cmd_len = strlen(command);
 	char ch;
@@ -251,8 +253,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 		switch(ch){ //how to deal with redirects???
 			    //how to deal with subshells?
 			case ';':
-				if(isLast && !from_make){
-					fprintf(stderr, "%d: Syntax Error\n", LINE+ curr_line_count);
+				if(!isLast && from_make && !next_ch_cp){
+					fprintf(stderr, "%d: (iter is %d) Syntax Error with %s\n", LINE+ curr_line_count, iter, command);
 					cleanup(cs);
 					exit(1);
 				}
@@ -261,6 +263,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				}
 				next_ch_ampe = false;
 				next_ch_pipe = false;
+				next_ch_cp = false;
+				isLast = false;
 				break;
 			case '&':
 				isLast = false;
@@ -272,6 +276,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 					next_ch_ampe = true;
 				}
 				next_ch_pipe = false;
+				next_ch_cp = false;
 				break;
 			case '|':
 				isLast = false;
@@ -287,6 +292,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 					next_ch_pipe = true;
 				}
 				next_ch_ampe = false;
+				next_ch_cp = false;
 				break;
 			case '\n':
 				if(from_make){
@@ -301,6 +307,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_pipe = false;
 				break;
 			case ')':
+				next_ch_cp = true;
 				if(c_in==-1 || (o_in > iter))
 				{
 					c_in = iter;
@@ -316,11 +323,15 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 						}
 					}
 				}
-
+				isLast = false;
+				next_ch_ampe = false;
+				next_ch_pipe = false;
+				break;
 			default:
 				isLast = false;
 				next_ch_ampe = false;
 				next_ch_pipe = false;
+				next_ch_cp = false;
 				break;
 		}	
 		iter = iter - 1;
@@ -347,8 +358,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0], cs, false);
-		add_command(rightside, source->u.command[1], cs, false);
+		add_command(leftside, source->u.command[0], cs, false, false);
+		add_command(rightside, source->u.command[1], cs, false, false);
 	}	
 	else if(andor_index != -1 && !(o_in<andor_index && andor_index<c_in)){ //and or or found
 		//printf("Above is an AND/OR (at position %d) command\n", andor_index);
@@ -369,8 +380,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 	//	printf("leftside is: %s\n THIS IS AN AND/OR\nrightside is: %s\n", leftside, rightside);
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0], cs, false);
-		add_command(rightside, source->u.command[1], cs, false);
+		add_command(leftside, source->u.command[0], cs, false, false);
+		add_command(rightside, source->u.command[1], cs, false, false);
 	
 
 
@@ -387,8 +398,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0], cs, false);
-		add_command(rightside, source->u.command[1], cs, false);
+		add_command(leftside, source->u.command[0], cs, false, false);
+		add_command(rightside, source->u.command[1], cs, false, false);
 	
 
 	}
@@ -404,7 +415,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 			strncpy(temp, command + start_ + 1, finish_ - start_ - 1);
 			source->u.subshell_command = (command_t) malloc(sizeof(struct command));
 			//printf("subshell starts at %d, finishes at %d: %s\n", start_, finish_, temp);
-			add_command(temp, source->u.subshell_command, cs, false);
+			add_command(temp, source->u.subshell_command, cs, false, true);
 		}
 		else{
 			source->type = SIMPLE_COMMAND;
@@ -589,7 +600,7 @@ make_command_stream (int (*get_next_byte) (void *),
 					curr_stream->iterator = curr_stream->iterator->next;
 					curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
 					//LINE = LINE + 1;
-					add_command(command, curr_stream->iterator->cmd, curr_stream, true);
+					add_command(command, curr_stream->iterator->cmd, curr_stream, true, false);
 					bzero(command,5000000);
 				}
 			}
@@ -643,7 +654,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		curr_stream->iterator = curr_stream->iterator->next;
 		curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
 		//LINE = LINE + 1;
-		add_command(command, curr_stream->iterator->cmd, curr_stream, true);
+		add_command(command, curr_stream->iterator->cmd, curr_stream, true, false);
 	} 
 //	printf("Total Lines: %d\n", LINE);
 //printf("%s\n", command);
