@@ -205,12 +205,13 @@ static int execute_normally(command_t c){
 int execute(char* command, char* input, char* output) {
     if(command == NULL) { return 0; }
     char* term = strtok(command, " ");
- 
+    
     int orig = dup(1);
-    int fp = -1;
+    int fp = -1, fd = -1;
     if(input != NULL) {
-      int fd = open(input, O_RDONLY);
+      fd = open(input, O_RDONLY);
       if(fd < 0) {
+          close(fd);
           error(0, 0, "Failed to open file: %s\n", input);
           return 0;
       }
@@ -219,6 +220,7 @@ int execute(char* command, char* input, char* output) {
     if(output != NULL) { 
       fp = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
       if(fp < 0) {
+          close(fp);
           error(0, 0, "Failed to open file: %s\n", output);
           return 0;
       }
@@ -254,9 +256,13 @@ int execute(char* command, char* input, char* output) {
       exit(FAIL);
     }
     else{
-      if(fp != -1){
-         close(fp);
-         dup2(orig, 1);
+      if(input != NULL && fd>0) {
+        dup2(orig, 1);
+        close(fd);
+      }
+      if(output != NULL && fp>0) { 
+        dup2(orig, 1);
+        close(fp);
       }
       int status;
       if(waitpid(p, &status, 0)<0) {

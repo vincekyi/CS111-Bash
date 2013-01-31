@@ -612,6 +612,7 @@ make_command_stream (int (*get_next_byte) (void *),
 				if((par_cnt == 0) && (curr_size_ > 0)){
 					//done with this command
 					curr_stream->iterator->next = (cmd_node*) malloc(sizeof(cmd_node));
+					bzero(curr_stream->iterator->next, sizeof(cmd_node));
 					curr_stream->iterator = curr_stream->iterator->next;
 					curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
 					//LINE = LINE + 1;
