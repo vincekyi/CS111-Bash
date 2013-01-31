@@ -242,6 +242,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 	bool next_ch_pipe = false;
 	bool next_ch_ampe = false;
 	bool next_ch_cp = false;
+	bool next_ch_semi = false;
 	bool isLast = true;
 	int cmd_len = strlen(command);
 	char ch;
@@ -253,7 +254,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 		switch(ch){ //how to deal with redirects???
 			    //how to deal with subshells?
 			case ';':
-				if(!isLast && from_make && !next_ch_cp){
+				if(next_ch_semi){
 					fprintf(stderr, "%d: (iter is %d) Syntax Error with %s\n", LINE+ curr_line_count, iter, command);
 					cleanup(cs);
 					exit(1);
@@ -264,10 +265,12 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_ampe = false;
 				next_ch_pipe = false;
 				next_ch_cp = false;
+				next_ch_semi = true;
 				isLast = false;
 				break;
 			case '&':
 				isLast = false;
+				next_ch_semi = false;
 				if(( (andor_index == -1) && next_ch_ampe) && !(o_in<iter && iter<c_in)
 						){
 					andor_index = iter;
@@ -279,6 +282,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_cp = false;
 				break;
 			case '|':
+				next_ch_semi = false;
 				isLast = false;
 				if(pipe_index == -1  && !(o_in<iter && iter<c_in)){
 					pipe_index = iter;
@@ -308,6 +312,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				break;
 			case ')':
 				next_ch_cp = true;
+				next_ch_semi = false;
 				if(c_in==-1 || (o_in > iter))
 				{
 					c_in = iter;
@@ -328,6 +333,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_pipe = false;
 				break;
 			default:
+				next_ch_semi = false;
 				isLast = false;
 				next_ch_ampe = false;
 				next_ch_pipe = false;
@@ -455,7 +461,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				for(i = len -1; i >= 0; i--){
 					if( command[i] == ' '  ||
 					    command[i] == '\n' ||
-					    command[i] == '\t' ){
+					    command[i] == '\t' ||
+					    command[i] == ';' ){
 						rwsc_ = rwsc_ + 1;	
 					}
 					else{
