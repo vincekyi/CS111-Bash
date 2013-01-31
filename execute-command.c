@@ -149,6 +149,23 @@ static int execute_normally(command_t c){
     {      
       pid_t sp = fork();
       if(sp == 0){
+        int fp = -1;
+        if(c->input != NULL) {
+          int fd = open(c->input, O_RDONLY);
+          if(fd < 0) {
+              error(0, 0, "Failed to open file: %s\n", c->input);
+              _exit(FAIL);
+          }
+          dup2(fd, 0);
+        }
+        if(c->output != NULL) { 
+          fp = open(c->output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+          if(fp < 0) {
+              error(0, 0, "Failed to open file: %s\n", c->output);
+              _exit(FAIL);
+          }
+          dup2(fp, 1);
+        }
 
       if(0 == execute_normally(c->u.subshell_command)){
         _exit(FAIL);

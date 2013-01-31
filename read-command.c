@@ -441,6 +441,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				cleanup(cs);
 				exit(1);
 			}
+		}
 
 			//find leading whitespace
 			int i;
@@ -494,13 +495,15 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
       			memcpy(output, str+ws, strlen(str)-ws);
 				source->output = output;
 				//create a new command
-				char** new_cmd = (char**)malloc(sizeof(char*));
-				*new_cmd = (char*)malloc(in+1);
-			  	bzero(*new_cmd, in+1);
-			  	ws = remove_ws(str, in-1, BACKWARD);
-			    memcpy(*new_cmd, str, ws+1);
-			    free(str);
-			    source->u.word = new_cmd;
+				if(source->type == SIMPLE_COMMAND) {
+					char** new_cmd = (char**)malloc(sizeof(char*));
+					*new_cmd = (char*)malloc(in+1);
+				  	bzero(*new_cmd, in+1);
+				  	ws = remove_ws(str, in-1, BACKWARD);
+				    memcpy(*new_cmd, str, ws+1);
+				    free(str);
+				    source->u.word = new_cmd;
+				}
 			    //printf("input:%s\n", input);
 			    //printf("output:%s\n", output);
   			}
@@ -512,13 +515,15 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
       			memcpy(input, str+ws, strlen(str)-ws);
 				source->input = input;
 				//create a new command
-				char** new_cmd = (char**)malloc(sizeof(char*));
-				*new_cmd = (char*)malloc(in+1);
-			  	bzero(*new_cmd, in+1);
-			  	ws = remove_ws(str, in-1, BACKWARD);
-			    memcpy(*new_cmd, str, ws+1);
-			    free(str);
-			    source->u.word = new_cmd;
+				if(source->type == SIMPLE_COMMAND) {
+					char** new_cmd = (char**)malloc(sizeof(char*));
+					*new_cmd = (char*)malloc(in+1);
+				  	bzero(*new_cmd, in+1);
+				  	ws = remove_ws(str, in-1, BACKWARD);
+				    memcpy(*new_cmd, str, ws+1);
+				    free(str);
+				    source->u.word = new_cmd;
+				}
 			    //printf("input:%s\n", input);
 			}
 			else if(out > 0) {
@@ -529,27 +534,30 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
       			memcpy(output, str+ws, strlen(str)-ws);
 				source->output = output;
 				//create a new command
-				char** new_cmd = (char**)malloc(sizeof(char*));
-				*new_cmd = (char*)malloc(out+1);
-			  	bzero(*new_cmd, out+1);
-			  	ws = remove_ws(str, out-1, BACKWARD);
-			    memcpy(*new_cmd, str, ws+1);
-			    free(str);
-			    source->u.word = new_cmd;
+				if(source->type == SIMPLE_COMMAND) {
+					char** new_cmd = (char**)malloc(sizeof(char*));
+					*new_cmd = (char*)malloc(out+1);
+				  	bzero(*new_cmd, out+1);
+				  	ws = remove_ws(str, out-1, BACKWARD);
+				    memcpy(*new_cmd, str, ws+1);
+				    free(str);
+				    source->u.word = new_cmd;
+				}
 			    //printf("output:%s\n", output);
 			}
 			else 
 			{
-				char** ptr = (char**)malloc(sizeof(char*));
-				*ptr = str;
-				source->u.word = ptr;
+				if(source->type == SIMPLE_COMMAND) {
+					char** ptr = (char**)malloc(sizeof(char*));
+					*ptr = str;
+					source->u.word = ptr;
+				}
 				source->input = NULL;
 				source->output = NULL;
 				//printf("no input/output\n");
 			}
 
 			//printf("command:%s\n", *(source->u.word));
-		}
 	}
 	
 	if(from_make){
