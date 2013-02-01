@@ -4,9 +4,8 @@
 #include <error.h>
 #include <getopt.h>
 #include <stdio.h>
-
 #include "command.h"
-
+#include <stdlib.h>
 static char const *program_name;
 static char const *script_name;
 
@@ -63,8 +62,9 @@ main (int argc, char **argv)
 	}
       else
 	{
+		execute_command(command, time_travel);
 //	  last_command = command;
-	  execute_command(command, time_travel);
+	 // if(!execute_command(command, time_travel)) { exit(1); }
 	}
     }
     cleanup(command_stream);

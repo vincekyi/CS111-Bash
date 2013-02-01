@@ -244,6 +244,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 	bool next_ch_cp = false;
 	bool next_ch_semi = false;
 	bool isLast = true;
+	bool par_valid = true;
 	int cmd_len = strlen(command);
 	char ch;
 	int iter = cmd_len - 1;
@@ -267,10 +268,14 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_cp = false;
 				next_ch_semi = true;
 				isLast = false;
+				par_valid = true;
 				break;
 			case '&':
 				isLast = false;
 				next_ch_semi = false;
+				if(next_ch_ampe){ par_valid = true; }
+				else par_valid = false;
+
 				if(( (andor_index == -1) && next_ch_ampe) && !(o_in<iter && iter<c_in)
 						){
 					andor_index = iter;
@@ -283,6 +288,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				break;
 			case '|':
 				next_ch_semi = false;
+				par_valid = true;
 				isLast = false;
 				if(pipe_index == -1  && !(o_in<iter && iter<c_in)){
 					pipe_index = iter;
@@ -311,6 +317,11 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_pipe = false;
 				break;
 			case ')':
+				if(!par_valid) { // error
+					fprintf(stderr, "%d: Syntax Error\n", LINE);
+					cleanup(cs);
+					exit(1);
+				}
 				next_ch_cp = true;
 				next_ch_semi = false;
 				if(c_in==-1 || (o_in > iter))
@@ -338,6 +349,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_ampe = false;
 				next_ch_pipe = false;
 				next_ch_cp = false;
+				par_valid = false;
 				break;
 		}	
 		iter = iter - 1;

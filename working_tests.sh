@@ -58,6 +58,6 @@ rm a
 rm b
 
 echo
-(echo hello) ls
+#(echo hello) ls
 echo hello
 

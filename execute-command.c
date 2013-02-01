@@ -26,16 +26,17 @@ int command_status (command_t c)
 
 int execute(char* command, char* input, char* output);
  
-void execute_command (command_t c, bool time_travel) {
+int execute_command (command_t c, bool time_travel) {
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
 
   if(time_travel){
     //do time travel stuff
+    return 1;
   }
   else{
-     execute_normally(c); 
+     return execute_normally(c); 
   }
 
 }
@@ -140,7 +141,6 @@ static int execute_normally(command_t c){
     case SIMPLE_COMMAND:
     {
        //execute c->u.word which is a char **
-       //printf("Will execute this: %s\n",*c->u.word);i
 
     return execute(*c->u.word, c->input, c->output);
     }
