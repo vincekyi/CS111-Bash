@@ -343,6 +343,15 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_ampe = false;
 				next_ch_pipe = false;
 				break;
+			case '>':
+				next_ch_semi = false;
+				isLast = false;
+				next_ch_ampe = false;
+				next_ch_pipe = false;
+				next_ch_cp = false;
+				par_valid = true;
+				break;
+
 			default:
 				next_ch_semi = false;
 				isLast = false;
