@@ -1,6 +1,13 @@
-#!/bin/sh
+#! /bin/sh
 
-#tests that pass
+
+tmp=$0-$$.tmp
+mkdir "$tmp" || exit
+
+(
+cd "$tmp" || exit
+
+cat >test.sh <<'EOF'
 echo
 echo hello
 echo
@@ -55,3 +62,52 @@ echo
 #(echo hello) ls
 echo hello
 
+EOF
+
+cat >test.exp <<'EOF'
+
+hello
+
+both
+prints
+
+print
+onlythisprints
+
+HELLO
+BYE
+
+
+hello
+bye
+
+thisisb
+hello
+bye
+1
+c
+a
+thisisb
+hello
+c
+bye
+a
+1
+hello
+
+
+
+hello
+EOF
+
+../timetrash  test.sh >test.out 2>test.err || exit
+
+diff -u test.exp test.out || exit
+test ! -s test.err || {
+  cat test.err
+  exit 1
+}
+
+) || exit
+
+rm -fr "$tmp"

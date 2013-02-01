@@ -2,6 +2,8 @@ Vincent Cheung, 603779249
 Vincent Kyi, 803916486
 
 Implementation
+
+lab1a:
 -We created a command_stream struc that includes a linked list and an iterator.
 -Each node in the linked list was called cmd_node, which contains a pointer to a command, a next pointer that 
 points to the next node.
@@ -21,8 +23,19 @@ read_command
 cleanup
 	this function free's all allocated memory - basically the linked list structure we kept our commands in. This was added to main.c
 
+lab1b:
 
+for non time travel execution, we basically walked through out linked list (command stream), and executed commands in the same order that they were printed out in. We did this recursively, just like the print_command function.
+
+We executed with execvp, and forked everytime before calling it so that our main process can continue (after waiting on the child to be done). For subshells, we forked as well. 
+
+For input/output, we used the dup2 command to redirect output or input to what was determined by the input and output fields of the command struct. Pipe used the same technique because we just had to change to output and input to match up.
+
+We also took into account the exec command possibility by not forking so exec takes over the current process.
 
 Possible limitations:
+lab1a:
 	We tried a lot of test cases which came from the spec, and fixed many problems revolving around subcommands and ()'s. Although we fixed everything we caught, there could possibly be more errors involving subcommands.
 
+lab1b:
+	We basically tried to make our execution like bash, so when there is a failing command (for example if we spell echo as eccchhoo) then that command triggers an error message, but then the script continues to run. This was not specified in the spec, but we assumed that since bash did it then it should be done. This could be a problem because when we copied the failing test cases from 1a we did not exit the script when we encountered an error. So it would say we unexpectedly succeed.
