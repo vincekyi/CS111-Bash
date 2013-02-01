@@ -344,6 +344,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_pipe = false;
 				break;
 			case '>':
+			case '<':
 				next_ch_semi = false;
 				isLast = false;
 				next_ch_ampe = false;
@@ -501,6 +502,11 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
   			int in = check_input(str);
   			int out = check_output(str);
+			if(in > out && out > 0){
+				fprintf(stderr, "%d: Syntax Error\n", LINE);
+				cleanup(cs);
+				exit(1);
+			}
   			if(in>0 && out>0) {
   				input = (char*) malloc(out-in);
   				bzero(input, out-in);
