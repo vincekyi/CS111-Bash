@@ -14,7 +14,10 @@ for bad in \
   'echo hello |& echo yeah'\
   'echo hello >a; echo bye>b;
 	sort a | cat b - <'\
- '&& ; '\
+  '&& ; '\
+  'aghag gfdsd'\
+  ') echo hi('\
+  'echo hello < adlkajglk'\
   '(echo hello);)ls(' \
   '(echo hello) ls;' \
   'echo (hello)' \
