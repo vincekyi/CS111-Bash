@@ -16,7 +16,10 @@
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
-
+char** DEP;
+int NUM_O_COMMANDS;
+struct command_io* CMD_SPOT;
+pid_t* CHILDREN;
 static int FAIL = 123;
 static int execute_normally(command_t c);
 int command_status (command_t c)
@@ -24,16 +27,16 @@ int command_status (command_t c)
   return c->status;
 }
 
+static int execute_time_travel(command_t c);
 int execute(char* command, char* input, char* output);
  
 int execute_command (command_t c, bool time_travel) {
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
-
   if(time_travel){
     //do time travel stuff
-    return 1;
+    return execute_time_travel(c);
   }
   else{
      return execute_normally(c); 
@@ -278,4 +281,86 @@ int execute(char* command, char* input, char* output) {
     }
 
   return 0;
+}
+
+static int execute_time_travel(command_t c){
+ if(c){}
+
+return 1;
+
+
+}
+void init(int len){
+	DEP = (char**)malloc(len*sizeof(char*));
+	NUM_O_COMMANDS = len;
+	int i;
+	for(i=0; i < len; i++){
+		DEP[i] = (char*)malloc(len*sizeof(char));
+	}
+        //initialize to X
+        int j;
+	for(i=0; i < len; i++){
+	   for(j=0; j < len; j++){
+		DEP[i][j] = 'x';
+	   }
+	}
+	CMD_SPOT = (struct command_io*)malloc(len*sizeof(struct command_io));
+	for(i = 0; i < len; i++){
+		CMD_SPOT[i].pid = -1;//i's pid DNE yet
+	}	
+	//What about CHILDREN?
+}
+
+void remove_globs(){
+	int i;
+	for(i = 0; i < NUM_O_COMMANDS; i++){
+		free(DEP[i]);
+	}
+	free(DEP);
+	free(CMD_SPOT);
+}
+
+void add_dep(int cmd_num){
+//add command number and fill out dependencies in matrix DEP
+	if(cmd_num >= NUM_O_COMMANDS) return;
+	DEP[cmd_num][cmd_num] = 'f';
+	//check dependencies and fill out matrix
+	//check i only if DEP[i][i] is 'f'
+	int i;
+	for(i = 0; i < cmd_num; i++){
+		if(DEP[i][i] == 'f'){//it is waiting or running
+			//check input outputs
+			//check if this input is that output
+			//check if this ouput is that input
+			//we are interested in CMD_SPOT[i].input and .output
+			//which are arrays of strings
+			
+		}
+	}
+	run_non_dep();
+}
+
+void remove_dep(int cmd_num){
+//remove command from matrix DEP 
+//clear column and row by chaning to X
+	int i;
+	for(i = 0; i < NUM_O_COMMANDS; i++){
+		DEP[i][cmd_num] ='f';
+	}
+//run any cleared procs
+	run_non_dep();
+}
+
+void run_non_dep(){
+//check for procs which can run, and run them.
+	int i,j;
+	for(i = 0; i < NUM_O_COMMANDS; i++){
+		for(j = 0; j <= i; j++){
+			if(DEP[i][j] != 'f')
+				break;
+			if(j == i)
+				{;}
+				//run CMD_SPOT[i].c
+		}
+	}
 }

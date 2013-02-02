@@ -188,7 +188,7 @@ void free_cmd(command_t cmd) {
 }
 
 void cleanup(command_stream_t cs) {
-
+  remove_globs();
   cs->iterator = cs->commands;
   if(cs->commands == NULL) {
     free(cs);
@@ -718,7 +718,6 @@ read_command_stream (command_stream_t s)
  // error (1, 0, "command reading not yet implemented");
 if(s==NULL)
 		return NULL;
-
 	//iterates through the commands and sets the next iterator
 	if(s->iterator!=NULL){
 		command_t cmd;
@@ -730,3 +729,15 @@ if(s==NULL)
 	//printf("Lines %d\n", LINE);
 	return NULL;
 }
+int get_num_cmds(command_stream_t cs){
+	if(cs == NULL) return 0;
+	int ret = 0;
+	cmd_node* iter = cs->iterator;
+	while(iter != NULL)
+	{
+		ret++;
+		iter = iter->next;
+	}
+	return ret;
+}
+

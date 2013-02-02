@@ -3,7 +3,12 @@
 #include <stdbool.h>
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
-
+struct command_io{
+	command_t c;
+	char** inputs;
+	char** outputs;
+	int pid;
+};
 /* Create a command stream from GETBYTE and ARG.  A reader of
    the command stream will invoke GETBYTE (ARG) to get the next byte.
    GETBYTE will return the next input byte, or a negative number
@@ -24,5 +29,10 @@ int execute_command (command_t, bool);
    been executed.  Wait for the command, if it is not already finished.  */
 int command_status (command_t);
 
-
+void init(int);
+void add_dep(int);
+void remove_dep(int);
+void run_non_dep();
+int get_num_cmds(command_stream_t);
+void remove_globs();
 void cleanup(command_stream_t);

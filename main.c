@@ -9,6 +9,7 @@
 static char const *program_name;
 static char const *script_name;
 
+
 static void
 usage (void)
 {
@@ -50,6 +51,9 @@ main (int argc, char **argv)
   command_stream_t command_stream =
     make_command_stream (get_next_byte, script_stream);
 
+  int numc = get_num_cmds(command_stream);
+  
+  init(numc);
   command_t last_command = NULL;
   command_t command;
   while ((command = read_command_stream (command_stream)))

@@ -1,0 +1,4 @@
+echo hello || echi hi
+echo hello ||
+echo hi
+ls
