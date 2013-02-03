@@ -38,7 +38,6 @@ int execute_command (command_t c, bool time_travel) {
   if(time_travel){
 	//creat command_io
 	//add to CMD_SPOT
-	printf("cmd count: %d\n", CMD_NUM);
 	CMD_SPOT[CMD_NUM] = create_command_io(c);
         CMD_NUM++;
 	add_dep(CMD_NUM -1);
@@ -150,7 +149,6 @@ static int execute_normally(command_t c){
     case SIMPLE_COMMAND:
     {
        //execute c->u.word which is a char **
-	fprintf(stderr, "im in exe normally\n");
 
     return execute(*c->u.word, c->input, c->output);
     }
@@ -260,10 +258,8 @@ int execute(char* command, char* input, char* output) {
       arr[i]=NULL;
       if(strncmp(arr[0], "false", 5)==0)
         exit(FAIL);
-	fprintf(stdout, "im about to execvp\n");
       execvp(arr[0], arr);
       error(FAIL, 0, "Command failed: %s", command);
-      fprintf(stderr, "asdfjalkdfj\n");
 	exit(FAIL);
     }
     else{
@@ -356,12 +352,14 @@ void add_dep(int cmd_num){
 			}
 		}
 	}
+	
 	run_non_dep();
 }
 
 void remove_dep(int cmd_num){
 //remove command from matrix DEP 
 //clear column and row by chaning to X
+	printf("remvoing a cmd\n");
 	int i;
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		DEP[i][cmd_num] ='f';
@@ -373,31 +371,33 @@ void remove_dep(int cmd_num){
 	run_non_dep();
 }
 
-void run_non_dep(){
+bool run_non_dep(){
 //check for procs which can run, and run them.
 	int i,j;
+	bool ret = false;
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		for(j = 0; j <= i; j++){
+			if( j == i && DEP[i][i] =='r'){ ret=true;}
 			if(DEP[i][j] != 'f')
 				break;
 			if(j == i){
+				ret = true;
 				DEP[i][j] = 'r';
-				signal(SIGINT, handle_process);
+				signal(SIGCHLD, handle_process);
 				int grand_p = fork();
 				if(grand_p == 0){
-					fprintf(stderr, "ladfjadklfj %d\n", CMD_NUM);
 				//	fprintf(stderr, "command has input: %s\n", CMD_SPOT[i]->c->input);
 					execute_normally(CMD_SPOT[i]->c);
-					raise(SIGINT);
-		fprintf(stderr, "asdf\n");			exit(T_SUCCESS);
+					exit(T_SUCCESS);
 				}
 				else{
-					CMD_SPOT[i]->isRunning = true;
+					printf("the pid is %d\n", grand_p);
 					CMD_SPOT[i]->pid = grand_p;
 				}	
 			}
 		}
 	}
+	return ret;
 }
 
 void extract(char** input, char**output, int* i_len, int* o_len, command_t cmd){
@@ -414,7 +414,10 @@ void extract(char** input, char**output, int* i_len, int* o_len, command_t cmd){
       }
       case SIMPLE_COMMAND:
       {
-        char* term = strtok(*(cmd->u.word), " ");
+	char tempp[strlen(*(cmd->u.word))];
+	bzero(tempp, strlen(*(cmd->u.word)));
+	strcpy(tempp, *(cmd->u.word));
+        char* term = strtok(tempp, " ");
         //skip command word and exec
         if(0 == strcmp(term, "exec")){ 
               term = strtok(NULL, " ");
@@ -496,7 +499,6 @@ struct command_io* create_command_io(command_t cmd) {
 }
 
 void handle_process(int sig) {
-
   //makes sure other signals are blocked
   sigset_t sset;
   sigemptyset(&sset);
@@ -504,19 +506,29 @@ void handle_process(int sig) {
   sigprocmask(SIG_BLOCK, &sset, NULL);
   //-----------------------------------
   int i, status;
-  fprintf(stderr, "in handle_process\n");
-
+	printf("Im in handledfafdsdfasfasfasfasf\n");
   for(i=0; i<NUM_O_COMMANDS; i++){ //loops through processes
     
-    if(CMD_SPOT[i]->pid!=-1 && CMD_SPOT[i]->isRunning){ //check status of child without waiting
-        waitpid(CMD_SPOT[i]->pid, &status, WNOHANG);
+    if(CMD_SPOT[i]->pid!=-1){ //check status of child without waiting
+	printf("FOUND CHILD RUNNING with pid: %d\n", CMD_SPOT[i]->pid); 
+       waitpid(CMD_SPOT[i]->pid, &status, WNOHANG);
+	printf("T_SUCCESS is %d and status is %d\n", T_SUCCESS, WEXITSTATUS(status));
         if(WEXITSTATUS(status)==T_SUCCESS){
+	  printf("asdfadfasdfaf\n");
           remove_dep(i);
-	        kill(CMD_SPOT[i]->pid, SIGKILL);
+           kill(CMD_SPOT[i]->pid, SIGKILL);
         }
     }
   }
   //-----------------------------------
   //unblock signals
   sigprocmask(SIG_UNBLOCK, &sset, NULL);
+}
+void finish_dep(){
+	int i = 1000;
+	int j = 0;
+	while(run_non_dep()){
+		if(i == j) break;
+	j++;
+	}
 }
