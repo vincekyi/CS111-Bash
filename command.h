@@ -39,3 +39,5 @@ void run_non_dep();
 int get_num_cmds(command_stream_t);
 void remove_globs();
 void cleanup(command_stream_t);
+void extract(char** input, char**output, int* i_len, int* o_len, command_t cmd);
+struct command_io* create_command_io(command_t cmd);

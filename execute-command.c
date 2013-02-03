@@ -364,3 +364,98 @@ void run_non_dep(){
 		}
 	}
 }
+
+void extract(char** input, char**output, int* i_len, int* o_len, command_t cmd){
+  switch (cmd->type)
+    {
+      case AND_COMMAND:
+      case SEQUENCE_COMMAND:
+      case OR_COMMAND:
+      case PIPE_COMMAND:
+      {
+        extract(input, output, i_len, o_len, cmd->u.command[0]);
+        extract(input, output, i_len, o_len, cmd->u.command[1]);
+        break;
+      }
+      case SIMPLE_COMMAND:
+      {
+        char* term = strtok(*(cmd->u.word), " ");
+        //skip command word and exec
+        if(0 == strcmp(term, "exec")){ 
+              term = strtok(NULL, " ");
+        }
+        term = strtok(NULL, " ");
+        //loop through command
+        while(term!=NULL) {
+            if(((*i_len)+1)%20==0) {
+              input = (char**) realloc(input, sizeof(char*)*2*((*i_len)+1));
+            }
+            input[*i_len] = (char*)malloc(strlen(term));
+            memcpy(input[*i_len], term, strlen(term));
+            (*i_len)++;
+            term = strtok(NULL, " ");
+        }
+        //add commands input and output
+        if(cmd->input!=NULL){
+          if(((*i_len)+1)%20==0) {
+                input = (char**) realloc(input, sizeof(char*)*2*((*i_len)+1));
+            }
+            
+            input[*i_len] = (char*)malloc(strlen(cmd->input));
+            memcpy(input[*i_len], cmd->input, strlen(cmd->input));
+            (*i_len)++;
+        }
+        if(cmd->output!=NULL) {
+            if(((*o_len)+1)%20==0) {
+                output = (char**) realloc(output, sizeof(char*)*2*((*o_len)+1));
+            }
+              output[*o_len] = (char*)malloc(strlen(cmd->output));
+              memcpy(output[*o_len], cmd->output, strlen(cmd->output));
+              (*o_len)++;
+        }
+        break;
+      }
+      case SUBSHELL_COMMAND: 
+      {      
+         //add commands input and output
+        if(cmd->input!=NULL){
+          if(((*i_len)+1)%20==0) {
+                input = (char**) realloc(input, sizeof(char*)*2*((*i_len)+1));
+            }
+            
+            input[*i_len] = (char*)malloc(strlen(cmd->input));
+            memcpy(input[*i_len], cmd->input, strlen(cmd->input));
+            (*i_len)++;
+        }
+        
+        if(cmd->output!=NULL){
+            if(((*o_len)+1)%20==0) {
+                output = (char**) realloc(output, sizeof(char*)*2*((*o_len)+1));
+            }
+              output[*o_len] = (char*)malloc(strlen(cmd->output));
+              memcpy(output[*o_len], cmd->output, strlen(cmd->output));
+              (*o_len)++;
+
+              //extract from subshell_command
+        }
+        extract(input, output, i_len, o_len, cmd->u.subshell_command);
+        break;
+      }
+      default:
+          break;
+    }
+}
+
+struct command_io* create_command_io(command_t cmd) {
+  struct command_io* new_c = (struct command_io*)malloc(sizeof(struct command_io));
+  new_c->c = cmd;
+  new_c->pid = -1;
+  new_c->i_len = 0;
+  new_c->o_len = 0;
+  new_c->isRunning = false;
+  new_c->inputs = (char**) malloc(sizeof(char*)*20);
+  new_c->outputs = (char**) malloc(sizeof(char*)*20);
+  extract(new_c->inputs, new_c->outputs, &(new_c->i_len), &(new_c->o_len), cmd);
+
+  return new_c;
+}
