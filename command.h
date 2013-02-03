@@ -7,6 +7,9 @@ struct command_io{
 	command_t c;
 	char** inputs;
 	char** outputs;
+	int i_len;
+	int o_len;
+	bool isRunning;
 	int pid;
 };
 /* Create a command stream from GETBYTE and ARG.  A reader of
