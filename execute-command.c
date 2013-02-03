@@ -21,6 +21,7 @@ int NUM_O_COMMANDS;
 struct command_io** CMD_SPOT;
 pid_t* CHILDREN;
 static int FAIL = 123;
+static int T_SUCCESS = 169;
 static int execute_normally(command_t c);
 int command_status (command_t c)
 {
@@ -380,7 +381,7 @@ void run_non_dep(){
 			if(DEP[i][j] != 'f')
 				break;
 			if(j == i){
-//				signal(SIGINT, handle_process);
+				signal(SIGINT, handle_process);
 				int grand_p = fork();
 				if(grand_p == 0){
 					execute_normally(CMD_SPOT[i]->c);
@@ -487,4 +488,28 @@ struct command_io* create_command_io(command_t cmd) {
   extract(new_c->inputs, new_c->outputs, &(new_c->i_len), &(new_c->o_len), cmd);
 
   return new_c;
+}
+
+void handle_process(int sig) {
+
+  //makes sure other signals are blocked
+  sigset_t sset;
+  sigemptyset(&sset);
+  sigaddset(&sset, sig);
+  sigprocmask(SIG_BLOCK, &sset, NULL);
+  //-----------------------------------
+  int i, status;
+
+  for(i=0; i<NUM_O_COMMANDS; i++){ //loops through processes
+    
+    if(CMD_SPOT[i]->pid!=-1 && CMD_SPOT[i]->isRunning && 
+       waitpid(CMD_SPOT[i]->pid, &status, WNOHANG)){ //check status of child without waiting
+        if(WEXITSTATUS(status)==T_SUCCESS){
+          remove_dep(i);
+        }
+    }
+  }
+  //-----------------------------------
+  //unblock signals
+  sigprocmask(SIG_UNBLOCK, &sset, NULL);
 }
