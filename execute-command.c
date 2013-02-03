@@ -18,7 +18,7 @@
    static function definitions, etc.  */
 char** DEP;
 int NUM_O_COMMANDS;
-struct command_io* CMD_SPOT;
+struct command_io** CMD_SPOT;
 pid_t* CHILDREN;
 static int FAIL = 123;
 static int execute_normally(command_t c);
@@ -304,19 +304,17 @@ void init(int len){
 		DEP[i][j] = 'x';
 	   }
 	}
-	CMD_SPOT = (struct command_io*)malloc(len*sizeof(struct command_io));
-	for(i = 0; i < len; i++){
-		CMD_SPOT[i].pid = -1;//i's pid DNE yet
-	}	
-	//What about CHILDREN?
+	CMD_SPOT = (struct command_io**)malloc(len*sizeof(struct command_io*));
 }
 
 void remove_globs(){
 	int i;
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		free(DEP[i]);
+		free(CMD_SPOT[i]);
 	}
 	free(DEP);
+
 	free(CMD_SPOT);
 }
 
@@ -326,7 +324,10 @@ void add_dep(int cmd_num){
 	DEP[cmd_num][cmd_num] = 'f';
 	//check dependencies and fill out matrix
 	//check i only if DEP[i][i] is 'f'
-	int i;
+	int i,j,k;
+	for(i = 0; i < NUM_O_COMMANDS; i++){
+		DEP[cmd_num][i] = 'f';
+	}
 	for(i = 0; i < cmd_num; i++){
 		if(DEP[i][i] == 'f'){//it is waiting or running
 			//check input outputs
@@ -335,6 +336,23 @@ void add_dep(int cmd_num){
 			//we are interested in CMD_SPOT[i].input and .output
 			//which are arrays of strings
 			
+			//check this input vs taht output
+			
+			for(j = 0; j < CMD_SPOT[cmd_num]->i_len; j++){
+				for(k = 0; k < CMD_SPOT[i]->o_len; k++){
+					if(0 == strcmp(CMD_SPOT[i]->outputs[k],CMD_SPOT[cmd_num]->inputs[j])){
+						DEP[cmd_num][i]='d';
+					}
+				}
+			}
+			//now check this output vs that input
+			for(j = 0; j < CMD_SPOT[cmd_num]->o_len; j++){
+				for(k = 0; k < CMD_SPOT[i]->i_len; k++){
+					if(0 == strcmp(CMD_SPOT[cmd_num]->outputs[j],CMD_SPOT[i]->inputs[k])){
+						DEP[cmd_num][i]='d';
+					}
+				}
+			}
 		}
 	}
 	run_non_dep();
@@ -347,6 +365,9 @@ void remove_dep(int cmd_num){
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		DEP[i][cmd_num] ='f';
 	}
+	DEP[cmd_num][cmd_num] = 'x';
+	CMD_SPOT[cmd_num]->pid = -1;
+	CMD_SPOT[cmd_num]->isRunning = false;
 //run any cleared procs
 	run_non_dep();
 }
@@ -358,9 +379,17 @@ void run_non_dep(){
 		for(j = 0; j <= i; j++){
 			if(DEP[i][j] != 'f')
 				break;
-			if(j == i)
-				{;}
-				//run CMD_SPOT[i].c
+			if(j == i){
+//				signal(SIGINT, handle_process);
+				int grand_p = fork();
+				if(grand_p == 0){
+					execute_normally(CMD_SPOT[i]->c);
+				}
+				else{
+					CMD_SPOT[i]->isRunning = true;
+					CMD_SPOT[i]->pid = grand_p;
+				}	
+			}
 		}
 	}
 }
