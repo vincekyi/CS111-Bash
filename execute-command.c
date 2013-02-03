@@ -150,6 +150,7 @@ static int execute_normally(command_t c){
     case SIMPLE_COMMAND:
     {
        //execute c->u.word which is a char **
+	fprintf(stderr, "im in exe normally\n");
 
     return execute(*c->u.word, c->input, c->output);
     }
@@ -259,10 +260,11 @@ int execute(char* command, char* input, char* output) {
       arr[i]=NULL;
       if(strncmp(arr[0], "false", 5)==0)
         exit(FAIL);
-
+	fprintf(stdout, "im about to execvp\n");
       execvp(arr[0], arr);
       error(FAIL, 0, "Command failed: %s", command);
-      exit(FAIL);
+      fprintf(stderr, "asdfjalkdfj\n");
+	exit(FAIL);
     }
     else{
       if(input != NULL && fd>0) {
@@ -314,12 +316,12 @@ void remove_globs(){
 	}
 	free(DEP);
 
-	free(CMD_SPOT);
+	free(CMD_SPOT); 
 }
 
 void add_dep(int cmd_num){
 //add command number and fill out dependencies in matrix DEP
-	if(cmd_num >= NUM_O_COMMANDS) return;
+	if(cmd_num > NUM_O_COMMANDS) return;
 	DEP[cmd_num][cmd_num] = 'f';
 	//check dependencies and fill out matrix
 	//check i only if DEP[i][i] is 'f'
@@ -328,7 +330,7 @@ void add_dep(int cmd_num){
 		DEP[cmd_num][i] = 'f';
 	}
 	for(i = 0; i < cmd_num; i++){
-		if(DEP[i][i] == 'f'){//it is waiting or running
+		if(DEP[i][i] == 'f' || DEP[i][i] == 'r'){//it is waiting or running
 			//check input outputs
 			//check if this input is that output
 			//check if this ouput is that input
@@ -379,13 +381,15 @@ void run_non_dep(){
 			if(DEP[i][j] != 'f')
 				break;
 			if(j == i){
+				DEP[i][j] = 'r';
 				signal(SIGINT, handle_process);
 				int grand_p = fork();
 				if(grand_p == 0){
 					fprintf(stderr, "ladfjadklfj %d\n", CMD_NUM);
+				//	fprintf(stderr, "command has input: %s\n", CMD_SPOT[i]->c->input);
 					execute_normally(CMD_SPOT[i]->c);
 					raise(SIGINT);
-					exit(T_SUCCESS);
+		fprintf(stderr, "asdf\n");			exit(T_SUCCESS);
 				}
 				else{
 					CMD_SPOT[i]->isRunning = true;
@@ -500,7 +504,7 @@ void handle_process(int sig) {
   sigprocmask(SIG_BLOCK, &sset, NULL);
   //-----------------------------------
   int i, status;
-  fprintf(stderr, "hello\n");
+  fprintf(stderr, "in handle_process\n");
 
   for(i=0; i<NUM_O_COMMANDS; i++){ //loops through processes
     
