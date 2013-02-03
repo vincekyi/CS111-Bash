@@ -21,6 +21,7 @@ int NUM_O_COMMANDS;
 struct command_io** CMD_SPOT;
 pid_t* CHILDREN;
 static int FAIL = 123;
+static int CMD_NUM = 0;
 static int T_SUCCESS = 169;
 static int execute_normally(command_t c);
 int command_status (command_t c)
@@ -28,7 +29,6 @@ int command_status (command_t c)
   return c->status;
 }
 
-static int execute_time_travel(command_t c);
 int execute(char* command, char* input, char* output);
  
 int execute_command (command_t c, bool time_travel) {
@@ -36,8 +36,13 @@ int execute_command (command_t c, bool time_travel) {
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
   if(time_travel){
-    //do time travel stuff
-    return execute_time_travel(c);
+	//creat command_io
+	//add to CMD_SPOT
+	printf("cmd count: %d\n", CMD_NUM);
+	CMD_SPOT[CMD_NUM] = create_command_io(c);
+        CMD_NUM++;
+	add_dep(CMD_NUM -1);
+    return 1;
   }
   else{
      return execute_normally(c); 
@@ -284,13 +289,6 @@ int execute(char* command, char* input, char* output) {
   return 0;
 }
 
-static int execute_time_travel(command_t c){
- if(c){}
-
-return 1;
-
-
-}
 void init(int len){
 	DEP = (char**)malloc(len*sizeof(char*));
 	NUM_O_COMMANDS = len;
@@ -384,7 +382,10 @@ void run_non_dep(){
 				signal(SIGINT, handle_process);
 				int grand_p = fork();
 				if(grand_p == 0){
+					fprintf(stderr, "ladfjadklfj %d\n", CMD_NUM);
 					execute_normally(CMD_SPOT[i]->c);
+					raise(SIGINT);
+					
 				}
 				else{
 					CMD_SPOT[i]->isRunning = true;
@@ -506,6 +507,7 @@ void handle_process(int sig) {
        waitpid(CMD_SPOT[i]->pid, &status, WNOHANG)){ //check status of child without waiting
         if(WEXITSTATUS(status)==T_SUCCESS){
           remove_dep(i);
+	  kill(CMD_SPOT[i]->pid, SIGKILL);
         }
     }
   }
