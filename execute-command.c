@@ -385,7 +385,7 @@ void run_non_dep(){
 					fprintf(stderr, "ladfjadklfj %d\n", CMD_NUM);
 					execute_normally(CMD_SPOT[i]->c);
 					raise(SIGINT);
-					
+					exit(T_SUCCESS);
 				}
 				else{
 					CMD_SPOT[i]->isRunning = true;
@@ -500,14 +500,15 @@ void handle_process(int sig) {
   sigprocmask(SIG_BLOCK, &sset, NULL);
   //-----------------------------------
   int i, status;
+  fprintf(stderr, "hello\n");
 
   for(i=0; i<NUM_O_COMMANDS; i++){ //loops through processes
     
-    if(CMD_SPOT[i]->pid!=-1 && CMD_SPOT[i]->isRunning && 
-       waitpid(CMD_SPOT[i]->pid, &status, WNOHANG)){ //check status of child without waiting
+    if(CMD_SPOT[i]->pid!=-1 && CMD_SPOT[i]->isRunning){ //check status of child without waiting
+        waitpid(CMD_SPOT[i]->pid, &status, WNOHANG);
         if(WEXITSTATUS(status)==T_SUCCESS){
           remove_dep(i);
-	  kill(CMD_SPOT[i]->pid, SIGKILL);
+	        kill(CMD_SPOT[i]->pid, SIGKILL);
         }
     }
   }
