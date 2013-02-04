@@ -38,7 +38,7 @@ int execute_command (command_t c, bool time_travel) {
   if(time_travel){
 	//creat command_io
 	//add to CMD_SPOT
-	CMD_SPOT[CMD_NUM] = create_command_io(c);
+	create_command_io(CMD_SPOT[CMD_NUM],c);
         CMD_NUM++;
 	add_dep(CMD_NUM -1);
     return 1;
@@ -302,12 +302,24 @@ void init(int len){
 	   }
 	}
 	CMD_SPOT = (struct command_io**)malloc(len*sizeof(struct command_io*));
+	for(i=0; i < len; i++){
+		CMD_SPOT[i] = (struct command_io*)malloc(sizeof(struct command_io));
+		CMD_SPOT[i]->pid = -1;
+		CMD_SPOT[i]->i_len = 0;
+		CMD_SPOT[i]->o_len = 0;	
+		CMD_SPOT[i]->isRunning = false;
+		CMD_SPOT[i]->inputs = (char**)malloc(sizeof(char*)*20);
+		CMD_SPOT[i]->outputs = (char**)malloc(sizeof(char*)*20);
+		
+	}
 }
 
 void remove_globs(){
 	int i;
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		free(DEP[i]);
+		free(CMD_SPOT[i]->inputs);
+		free(CMD_SPOT[i]->outputs);
 		free(CMD_SPOT[i]);
 	}
 	free(DEP);
@@ -317,6 +329,7 @@ void remove_globs(){
 
 void add_dep(int cmd_num){
 //add command number and fill out dependencies in matrix DEP
+	check_children();
 	if(cmd_num > NUM_O_COMMANDS) return;
 	DEP[cmd_num][cmd_num] = 'f';
 	//check dependencies and fill out matrix
@@ -328,11 +341,17 @@ void add_dep(int cmd_num){
 	for(i = 0; i < cmd_num; i++){
 		if(DEP[i][i] == 'f' || DEP[i][i] == 'r'){//it is waiting or running
 			//check input outputs
+			printf("found previous command is waiting or running\n");
 			//check if this input is that output
 			//check if this ouput is that input
 			//we are interested in CMD_SPOT[i].input and .output
 			//which are arrays of strings
-			
+			for(j = 0; j < CMD_SPOT[cmd_num]->i_len; j++){
+				for(k = 0; k < CMD_SPOT[i]->o_len; k++){
+					printf("this input is : %s\nthat output is: %s\n", CMD_SPOT[cmd_num]->inputs[j], CMD_SPOT[i]->outputs[k]);	
+				}
+			}
+
 			//check this input vs taht output
 			
 			for(j = 0; j < CMD_SPOT[cmd_num]->i_len; j++){
@@ -352,14 +371,16 @@ void add_dep(int cmd_num){
 			}
 		}
 	}
-	
 	run_non_dep();
+  for(i=0; i<NUM_O_COMMANDS; i++){ //loops through processes
+    if(CMD_SPOT[i]->pid!=-1){ //check status of child without waiting
+	}
+	}
 }
 
 void remove_dep(int cmd_num){
 //remove command from matrix DEP 
 //clear column and row by chaning to X
-	printf("remvoing a cmd\n");
 	int i;
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		DEP[i][cmd_num] ='f';
@@ -374,6 +395,7 @@ void remove_dep(int cmd_num){
 bool run_non_dep(){
 //check for procs which can run, and run them.
 	int i,j;
+
 	bool ret = false;
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		for(j = 0; j <= i; j++){
@@ -383,16 +405,24 @@ bool run_non_dep(){
 			if(j == i){
 				ret = true;
 				DEP[i][j] = 'r';
-				signal(SIGCHLD, handle_process);
-				int grand_p = fork();
+
+				//signail(SIGCHLD, handle_process);
+				int grand_p;
+				grand_p =  fork();
+				if(grand_p != 0){
+					CMD_SPOT[i]->pid = grand_p;
+				}
 				if(grand_p == 0){
 				//	fprintf(stderr, "command has input: %s\n", CMD_SPOT[i]->c->input);
 					execute_normally(CMD_SPOT[i]->c);
+				printf("about to exit T_SUCCESS\n");	
 					exit(T_SUCCESS);
 				}
 				else{
-					printf("the pid is %d\n", grand_p);
-					CMD_SPOT[i]->pid = grand_p;
+				
+					//CMD_SPOT[i]->pid = grand_p;
+					//signal(SIGCHLD, handle_process);
+
 				}	
 			}
 		}
@@ -484,35 +514,26 @@ void extract(char** input, char**output, int* i_len, int* o_len, command_t cmd){
     }
 }
 
-struct command_io* create_command_io(command_t cmd) {
-  struct command_io* new_c = (struct command_io*)malloc(sizeof(struct command_io));
-  new_c->c = cmd;
-  new_c->pid = -1;
-  new_c->i_len = 0;
-  new_c->o_len = 0;
-  new_c->isRunning = false;
-  new_c->inputs = (char**) malloc(sizeof(char*)*20);
-  new_c->outputs = (char**) malloc(sizeof(char*)*20);
-  extract(new_c->inputs, new_c->outputs, &(new_c->i_len), &(new_c->o_len), cmd);
+void create_command_io(struct command_io* cmd_io,command_t cmd) {
+  cmd_io->c = cmd;
+  extract(cmd_io->inputs, cmd_io->outputs, &(cmd_io->i_len), &(cmd_io->o_len), cmd);
 
-  return new_c;
 }
 
 void handle_process(int sig) {
   //makes sure other signals are blocked
-  sigset_t sset;
-  sigemptyset(&sset);
-  sigaddset(&sset, sig);
-  sigprocmask(SIG_BLOCK, &sset, NULL);
+ // sigset_t sset;
+  //sigemptyset(&sset);
+  //sigaddset(&sset, sig);
+  //sigprocmask(SIG_BLOCK, &sset, NULL);
   //-----------------------------------
   int i, status;
-	printf("Im in handledfafdsdfasfasfasfasf\n");
+ if(sig == SIGCHLD){ printf("Recieved SIGCHLD\n");}	
+printf("Blocked and in handle_process looking..\n");
   for(i=0; i<NUM_O_COMMANDS; i++){ //loops through processes
-    
     if(CMD_SPOT[i]->pid!=-1){ //check status of child without waiting
 	printf("FOUND CHILD RUNNING with pid: %d\n", CMD_SPOT[i]->pid); 
        waitpid(CMD_SPOT[i]->pid, &status, WNOHANG);
-	printf("T_SUCCESS is %d and status is %d\n", T_SUCCESS, WEXITSTATUS(status));
         if(WEXITSTATUS(status)==T_SUCCESS){
 	  printf("asdfadfasdfaf\n");
           remove_dep(i);
@@ -522,13 +543,29 @@ void handle_process(int sig) {
   }
   //-----------------------------------
   //unblock signals
-  sigprocmask(SIG_UNBLOCK, &sset, NULL);
+ // sigprocmask(SIG_UNBLOCK, &sset, NULL);
 }
 void finish_dep(){
-	int i = 1000;
-	int j = 0;
-	while(run_non_dep()){
-		if(i == j) break;
-	j++;
+	//int i = 100000;
+//	int j = 0;
+//	while(run_non_dep()){
+		check_children();
+	//	if(i == j) break;
+//	j++;
+//	}
+	//printf("done executing\n");
+}
+void check_children(){
+	int i, status;
+	for(i = 0; i < NUM_O_COMMANDS; i++){
+		if(CMD_SPOT[i]->pid != -1){ 
+			waitpid(CMD_SPOT[i]->pid, &status, WNOHANG);
+
+			if(WEXITSTATUS(status) == T_SUCCESS){
+				remove_dep(i); kill(CMD_SPOT[i]->pid, SIGKILL);
+				printf("killed it\n");
+			}	
+		}
+		
 	}
 }
