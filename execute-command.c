@@ -341,17 +341,18 @@ void add_dep(int cmd_num){
 	for(i = 0; i < cmd_num; i++){
 		if(DEP[i][i] == 'f' || DEP[i][i] == 'r'){//it is waiting or running
 			//check input outputs
-			printf("found previous command is waiting or running\n");
+			//printf("found previous command is waiting or running\n");
 			//check if this input is that output
 			//check if this ouput is that input
 			//we are interested in CMD_SPOT[i].input and .output
 			//which are arrays of strings
+      /*
 			for(j = 0; j < CMD_SPOT[cmd_num]->i_len; j++){
 				for(k = 0; k < CMD_SPOT[i]->o_len; k++){
 					printf("this input is : %s\nthat output is: %s\n", CMD_SPOT[cmd_num]->inputs[j], CMD_SPOT[i]->outputs[k]);	
 				}
 			}
-
+  */
 			//check this input vs taht output
 			
 			for(j = 0; j < CMD_SPOT[cmd_num]->i_len; j++){
@@ -415,8 +416,8 @@ bool run_non_dep(){
 				if(grand_p == 0){
 				//	fprintf(stderr, "command has input: %s\n", CMD_SPOT[i]->c->input);
 					execute_normally(CMD_SPOT[i]->c);
-				printf("about to exit T_SUCCESS\n");	
-					exit(T_SUCCESS);
+				  //printf("about to exit T_SUCCESS\n");	
+					_exit(T_SUCCESS);
 				}
 				else{
 				
@@ -546,13 +547,21 @@ printf("Blocked and in handle_process looking..\n");
  // sigprocmask(SIG_UNBLOCK, &sset, NULL);
 }
 void finish_dep(){
-	//int i = 100000;
+	//int i = 5;
 //	int j = 0;
-//	while(run_non_dep()){
-		check_children();
-	//	if(i == j) break;
-//	j++;
-//	}
+  int i, status;
+  for(i = 0; i < NUM_O_COMMANDS; i++){
+    if(CMD_SPOT[i]->pid != -1){ 
+      waitpid(CMD_SPOT[i]->pid, &status, 0);
+      if(WEXITSTATUS(status) == T_SUCCESS){
+        kill(CMD_SPOT[i]->pid, SIGKILL);
+        remove_dep(i); 
+        i=0;
+        //printf("killed it\n");
+      } 
+    }
+    
+  }
 	//printf("done executing\n");
 }
 void check_children(){
@@ -560,10 +569,11 @@ void check_children(){
 	for(i = 0; i < NUM_O_COMMANDS; i++){
 		if(CMD_SPOT[i]->pid != -1){ 
 			waitpid(CMD_SPOT[i]->pid, &status, WNOHANG);
-
+      //printf("%d\n", CMD_SPOT[i]->pid);
 			if(WEXITSTATUS(status) == T_SUCCESS){
-				remove_dep(i); kill(CMD_SPOT[i]->pid, SIGKILL);
-				printf("killed it\n");
+				kill(CMD_SPOT[i]->pid, SIGKILL);
+        remove_dep(i); 
+				//printf("killed it\n");
 			}	
 		}
 		
