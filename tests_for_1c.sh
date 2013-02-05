@@ -20,9 +20,10 @@ sleep 3
 (echo 5thcommand || echo file4) && (echo this && echo that) > this
 sleep 4
 (echo 6thcommand || echo this) && (echo a && echo b) > that
-(sort < this | cat that - | sort -r) > that
+echo 7thcommand && (sort < this | cat that - | sort -r) > that
+echo 8thcommand && echo hi > that
 sleep 5
-(echo 7thcommand || echo this || echo that) && rm this && rm that
+(echo 9thcommand || echo this || echo that) && rm this && rm that
 EOF
 
 cat >test.exp <<'EOF'
@@ -33,6 +34,8 @@ cat >test.exp <<'EOF'
 5thcommand
 6thcommand
 7thcommand
+8thcommand
+9thcommand
 EOF
 
 ../timetrash -t test.sh >test.out 2>test.err || exit

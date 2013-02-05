@@ -364,6 +364,14 @@ void add_dep(int cmd_num){
 					}
 				}
 			}
+      //check output vs other output
+      for(j = 0; j < CMD_SPOT[cmd_num]->o_len; j++){
+        for(k = 0; k < CMD_SPOT[i]->o_len; k++){
+          if(0 == strcmp(CMD_SPOT[i]->outputs[k],CMD_SPOT[cmd_num]->outputs[j])){
+            DEP[cmd_num][i]='d';
+          }
+        }
+      }
 			//now check this output vs that input
 			for(j = 0; j < CMD_SPOT[cmd_num]->o_len; j++){
 				for(k = 0; k < CMD_SPOT[i]->i_len; k++){
