@@ -493,6 +493,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 					}
 				}
 			}
+
 			char* str = (char*) malloc(len - wsc_ - rwsc_ + 1);
 			bzero(str, len - wsc_ - rwsc_ + 1);
 			memcpy(str, command + wsc_, len - wsc_ - rwsc_);
@@ -502,12 +503,14 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
   			int in = check_input(str);
   			int out = check_output(str);
+  			//!(o_in<in && in<c_in)
+  			bool misplacedIO = (in>o_in && in<c_in) || (out>o_in && out<c_in);
 			if(in > out && out > 0){
 				fprintf(stderr, "%d: Syntax Error\n", LINE);
 				cleanup(cs);
 				exit(1);
-			}
-  			if(in>0 && out>0) {
+			} 
+  			if(in>0 && out>0 && ((c_in < in && c_in < out) || !misplacedIO)) {
   				input = (char*) malloc(out-in);
   				bzero(input, out-in);
   				//remove whitespaces
@@ -534,7 +537,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 			    //printf("input:%s\n", input);
 			    //printf("output:%s\n", output);
   			}
-			else if(in > 0) {
+			else if(in > 0 && (c_in < in || !misplacedIO)) {
 				input = (char*) malloc(strlen(str)-in);
 				bzero(input, strlen(str)-in);
 				//remove whitespaces
@@ -553,7 +556,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				}
 			    //printf("input:%s\n", input);
 			}
-			else if(out > 0) {
+			else if(out > 0 && (c_in < out || !misplacedIO)) {
 				output = (char*) malloc(strlen(str)-out);
 				bzero(output, strlen(str)-out);
 				//remove whitespaces
