@@ -2,6 +2,8 @@ Vincent Cheung, 603779249
 Vincent Kyi, 803916486
 
 Implementation
+
+lab1a:
 -We created a command_stream struc that includes a linked list and an iterator.
 -Each node in the linked list was called cmd_node, which contains a pointer to a command, a next pointer that 
 points to the next node.
@@ -21,8 +23,33 @@ read_command
 cleanup
 	this function free's all allocated memory - basically the linked list structure we kept our commands in. This was added to main.c
 
+lab1b:
 
+for non time travel execution, we basically walked through out linked list (command stream), and executed commands in the same order that they were printed out in. We did this recursively, just like the print_command function.
+
+We executed with execvp, and forked everytime before calling it so that our main process can continue (after waiting on the child to be done). For subshells, we forked as well. 
+
+For input/output, we used the dup2 command to redirect output or input to what was determined by the input and output fields of the command struct. Pipe used the same technique because we just had to change to output and input to match up.
+
+We also took into account the exec command possibility by not forking so exec takes over the current process.
+
+lab1c:
+
+To keep track of dependencies, we used a matrix of chars: 'f' being free to run, 'r' being running, 'x' being DNE, and 'd' being dependent. As commands were to be executed, we added them to the matrix and compared inputs/outputs of the current command with previous commands which were not done executing yet. This way, we could just scan through our matrix to determine which command could be executed (similar to 1b). When a command was done, the main process would maintain the matrix by just removing its entire column (everything that was dependent on it). 
+
+We also kept a global array of all the children running, so the main processes could manage the dependency matrix easily. This global array was dynamically allocated and we just added the free() to the already existing cleanup() function.
+
+The implementation of executing was very similar to 1b, except the  main processes forked a child which would execute_normally(). This way, the main process could continue running and only have to check when the process was done because its child would exit after the execute was complete. Our main process never actually call execute because by adding the dependency, we check if any waiting commands can run. It makes it easier that anything that can run will run, and we won't have to set up special cases in the main process.
+
+At the very end, we just made sure to keep trying to execute until our matrix was all 'x' (meaning that everything was done executing). We did this by just looping through our matrix.
 
 Possible limitations:
+lab1a:
 	We tried a lot of test cases which came from the spec, and fixed many problems revolving around subcommands and ()'s. Although we fixed everything we caught, there could possibly be more errors involving subcommands.
 
+lab1b:
+	We basically tried to make our execution like bash, so when there is a failing command (for example if we spell echo as eccchhoo) then that command triggers an error message, but then the script continues to run. This was not specified in the spec, but we assumed that since bash did it then it should be done. This could be a problem because when we copied the failing test cases from 1a we did not exit the script when we encountered an error. So it would say we unexpectedly succeed.
+
+lab1c:
+	There could be a problem with ls. We considered ls to be independent of all commands, even commands which create files. The spec did not identify this special case, so we considered it to be not special (no inputs and no outputs).
+	Also, if there are no dependencies, the outputs may not arrive in the same order. This is probably expected though, because when you fork there is no guarantee how fast children will execute. 

@@ -34,7 +34,7 @@ bool isBlank(const char* str) {
 	if(len == 0 || str == NULL)
 		return true;
 	for(i=0; i<len; i++) {
-		if(str[i]!='\t' && str[i]!=' ' && str[i]!='\n')
+		if(str[i]!='\t' && str[i]!=' ' && str[i]!='\n' && str[i]!=';')
 			return false;
 	}
 	return true;
@@ -96,7 +96,7 @@ int isValid(const char* str, int line) {
     if(!(63<(int)str[i] && (int)str[i]<91) &&
        !(96<(int)str[i] && (int)str[i]<123)&& 
        !(47<(int)str[i] && (int)str[i]<58) && 
-       str[i]!='#' && str[i]!=',' &&
+       str[i]!='#' && str[i]!=',' && str[i]!=';' &&
        str[i]!='!' && str[i]!='%' && str[i]!='+' && 
        str[i]!='-' && str[i]!='.' && str[i]!='/' &&
        str[i]!=':' && str[i]!='^' && str[i]!='_' && 
@@ -188,7 +188,7 @@ void free_cmd(command_t cmd) {
 }
 
 void cleanup(command_stream_t cs) {
-
+  remove_globs();
   cs->iterator = cs->commands;
   if(cs->commands == NULL) {
     free(cs);
@@ -234,13 +234,17 @@ int check_output(char* str)
   return result;
 }
 
-void add_command(const char* command, command_t source, command_stream_t cs, bool from_make){
+void add_command(const char* command, command_t source, command_stream_t cs, bool from_make, bool from_subshell){
 	int line_count = 0;
+	if(from_subshell){}
 	int semi_index = -1, andor_index = -1, pipe_index = -1;
 	int o_in = -1, c_in = -1;
 	bool next_ch_pipe = false;
 	bool next_ch_ampe = false;
+	bool next_ch_cp = false;
+	bool next_ch_semi = false;
 	bool isLast = true;
+	bool par_valid = true;
 	int cmd_len = strlen(command);
 	char ch;
 	int iter = cmd_len - 1;
@@ -251,14 +255,27 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 		switch(ch){ //how to deal with redirects???
 			    //how to deal with subshells?
 			case ';':
+				if(next_ch_semi){
+					fprintf(stderr, "%d: (iter is %d) Syntax Error with %s\n", LINE+ curr_line_count, iter, command);
+					cleanup(cs);
+					exit(1);
+				}
 				if(((!isLast) && semi_index == -1) && !(o_in<iter && iter<c_in)){
 					semi_index = iter;
 				}
 				next_ch_ampe = false;
 				next_ch_pipe = false;
+				next_ch_cp = false;
+				next_ch_semi = true;
+				isLast = false;
+				par_valid = true;
 				break;
 			case '&':
 				isLast = false;
+				next_ch_semi = false;
+				if(next_ch_ampe){ par_valid = true; }
+				else par_valid = false;
+
 				if(( (andor_index == -1) && next_ch_ampe) && !(o_in<iter && iter<c_in)
 						){
 					andor_index = iter;
@@ -267,8 +284,11 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 					next_ch_ampe = true;
 				}
 				next_ch_pipe = false;
+				next_ch_cp = false;
 				break;
 			case '|':
+				next_ch_semi = false;
+				par_valid = true;
 				isLast = false;
 				if(pipe_index == -1  && !(o_in<iter && iter<c_in)){
 					pipe_index = iter;
@@ -282,6 +302,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 					next_ch_pipe = true;
 				}
 				next_ch_ampe = false;
+				next_ch_cp = false;
 				break;
 			case '\n':
 				if(from_make){
@@ -296,6 +317,13 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				next_ch_pipe = false;
 				break;
 			case ')':
+				if(!par_valid) { // error
+					fprintf(stderr, "%d: Syntax Error\n", LINE);
+					cleanup(cs);
+					exit(1);
+				}
+				next_ch_cp = true;
+				next_ch_semi = false;
 				if(c_in==-1 || (o_in > iter))
 				{
 					c_in = iter;
@@ -311,11 +339,27 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 						}
 					}
 				}
-
-			default:
 				isLast = false;
 				next_ch_ampe = false;
 				next_ch_pipe = false;
+				break;
+			case '>':
+			case '<':
+				next_ch_semi = false;
+				isLast = false;
+				next_ch_ampe = false;
+				next_ch_pipe = false;
+				next_ch_cp = false;
+				par_valid = true;
+				break;
+
+			default:
+				next_ch_semi = false;
+				isLast = false;
+				next_ch_ampe = false;
+				next_ch_pipe = false;
+				next_ch_cp = false;
+				par_valid = false;
 				break;
 		}	
 		iter = iter - 1;
@@ -342,8 +386,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0], cs, false);
-		add_command(rightside, source->u.command[1], cs, false);
+		add_command(leftside, source->u.command[0], cs, false, false);
+		add_command(rightside, source->u.command[1], cs, false, false);
 	}	
 	else if(andor_index != -1 && !(o_in<andor_index && andor_index<c_in)){ //and or or found
 		//printf("Above is an AND/OR (at position %d) command\n", andor_index);
@@ -364,8 +408,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 	//	printf("leftside is: %s\n THIS IS AN AND/OR\nrightside is: %s\n", leftside, rightside);
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0], cs, false);
-		add_command(rightside, source->u.command[1], cs, false);
+		add_command(leftside, source->u.command[0], cs, false, false);
+		add_command(rightside, source->u.command[1], cs, false, false);
 	
 
 
@@ -382,8 +426,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
 		source->u.command[0] = (struct command*) malloc(sizeof(struct command));
 		source->u.command[1] = (struct command*) malloc(sizeof(struct command));
-		add_command(leftside, source->u.command[0], cs, false);
-		add_command(rightside, source->u.command[1], cs, false);
+		add_command(leftside, source->u.command[0], cs, false, false);
+		add_command(rightside, source->u.command[1], cs, false, false);
 	
 
 	}
@@ -399,12 +443,13 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 			strncpy(temp, command + start_ + 1, finish_ - start_ - 1);
 			source->u.subshell_command = (command_t) malloc(sizeof(struct command));
 			//printf("subshell starts at %d, finishes at %d: %s\n", start_, finish_, temp);
-			add_command(temp, source->u.subshell_command, cs, false);
+			add_command(temp, source->u.subshell_command, cs, false, true);
 		}
 		else{
 			source->type = SIMPLE_COMMAND;
 			source->u.word = NULL;
 			//check for validity
+		//	printf("command: %s\n", command);
 			int err = isValid(command, LINE);
 		//	printf("line %d: %s\n", LINE, command);
 			if(err!=0 || isBlank(command)) {
@@ -418,6 +463,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				cleanup(cs);
 				exit(1);
 			}
+		}
 
 			//find leading whitespace
 			int i;
@@ -438,7 +484,8 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 				for(i = len -1; i >= 0; i--){
 					if( command[i] == ' '  ||
 					    command[i] == '\n' ||
-					    command[i] == '\t' ){
+					    command[i] == '\t' ||
+					    command[i] == ';' ){
 						rwsc_ = rwsc_ + 1;	
 					}
 					else{
@@ -446,6 +493,7 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 					}
 				}
 			}
+
 			char* str = (char*) malloc(len - wsc_ - rwsc_ + 1);
 			bzero(str, len - wsc_ - rwsc_ + 1);
 			memcpy(str, command + wsc_, len - wsc_ - rwsc_);
@@ -455,7 +503,14 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
 
   			int in = check_input(str);
   			int out = check_output(str);
-  			if(in>0 && out>0) {
+  			//!(o_in<in && in<c_in)
+  			bool misplacedIO = (in>o_in && in<c_in) || (out>o_in && out<c_in);
+			if(in > out && out > 0){
+				fprintf(stderr, "%d: Syntax Error\n", LINE);
+				cleanup(cs);
+				exit(1);
+			} 
+  			if(in>0 && out>0 && ((c_in < in && c_in < out) || !misplacedIO)) {
   				input = (char*) malloc(out-in);
   				bzero(input, out-in);
   				//remove whitespaces
@@ -470,17 +525,19 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
       			memcpy(output, str+ws, strlen(str)-ws);
 				source->output = output;
 				//create a new command
-				char** new_cmd = (char**)malloc(sizeof(char*));
-				*new_cmd = (char*)malloc(in+1);
-			  	bzero(*new_cmd, in+1);
-			  	ws = remove_ws(str, in-1, BACKWARD);
-			    memcpy(*new_cmd, str, ws+1);
-			    free(str);
-			    source->u.word = new_cmd;
+				if(source->type == SIMPLE_COMMAND) {
+					char** new_cmd = (char**)malloc(sizeof(char*));
+					*new_cmd = (char*)malloc(in+1);
+				  	bzero(*new_cmd, in+1);
+				  	ws = remove_ws(str, in-1, BACKWARD);
+				    memcpy(*new_cmd, str, ws+1);
+				    free(str);
+				    source->u.word = new_cmd;
+				}
 			    //printf("input:%s\n", input);
 			    //printf("output:%s\n", output);
   			}
-			else if(in > 0) {
+			else if(in > 0 && (c_in < in || !misplacedIO)) {
 				input = (char*) malloc(strlen(str)-in);
 				bzero(input, strlen(str)-in);
 				//remove whitespaces
@@ -488,16 +545,18 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
       			memcpy(input, str+ws, strlen(str)-ws);
 				source->input = input;
 				//create a new command
-				char** new_cmd = (char**)malloc(sizeof(char*));
-				*new_cmd = (char*)malloc(in+1);
-			  	bzero(*new_cmd, in+1);
-			  	ws = remove_ws(str, in-1, BACKWARD);
-			    memcpy(*new_cmd, str, ws+1);
-			    free(str);
-			    source->u.word = new_cmd;
+				if(source->type == SIMPLE_COMMAND) {
+					char** new_cmd = (char**)malloc(sizeof(char*));
+					*new_cmd = (char*)malloc(in+1);
+				  	bzero(*new_cmd, in+1);
+				  	ws = remove_ws(str, in-1, BACKWARD);
+				    memcpy(*new_cmd, str, ws+1);
+				    free(str);
+				    source->u.word = new_cmd;
+				}
 			    //printf("input:%s\n", input);
 			}
-			else if(out > 0) {
+			else if(out > 0 && (c_in < out || !misplacedIO)) {
 				output = (char*) malloc(strlen(str)-out);
 				bzero(output, strlen(str)-out);
 				//remove whitespaces
@@ -505,27 +564,30 @@ void add_command(const char* command, command_t source, command_stream_t cs, boo
       			memcpy(output, str+ws, strlen(str)-ws);
 				source->output = output;
 				//create a new command
-				char** new_cmd = (char**)malloc(sizeof(char*));
-				*new_cmd = (char*)malloc(out+1);
-			  	bzero(*new_cmd, out+1);
-			  	ws = remove_ws(str, out-1, BACKWARD);
-			    memcpy(*new_cmd, str, ws+1);
-			    free(str);
-			    source->u.word = new_cmd;
+				if(source->type == SIMPLE_COMMAND) {
+					char** new_cmd = (char**)malloc(sizeof(char*));
+					*new_cmd = (char*)malloc(out+1);
+				  	bzero(*new_cmd, out+1);
+				  	ws = remove_ws(str, out-1, BACKWARD);
+				    memcpy(*new_cmd, str, ws+1);
+				    free(str);
+				    source->u.word = new_cmd;
+				}
 			    //printf("output:%s\n", output);
 			}
 			else 
 			{
-				char** ptr = (char**)malloc(sizeof(char*));
-				*ptr = str;
-				source->u.word = ptr;
+				if(source->type == SIMPLE_COMMAND) {
+					char** ptr = (char**)malloc(sizeof(char*));
+					*ptr = str;
+					source->u.word = ptr;
+				}
 				source->input = NULL;
 				source->output = NULL;
 				//printf("no input/output\n");
 			}
 
 			//printf("command:%s\n", *(source->u.word));
-		}
 	}
 	
 	if(from_make){
@@ -580,10 +642,11 @@ make_command_stream (int (*get_next_byte) (void *),
 				if((par_cnt == 0) && (curr_size_ > 0)){
 					//done with this command
 					curr_stream->iterator->next = (cmd_node*) malloc(sizeof(cmd_node));
+					bzero(curr_stream->iterator->next, sizeof(cmd_node));
 					curr_stream->iterator = curr_stream->iterator->next;
 					curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
 					//LINE = LINE + 1;
-					add_command(command, curr_stream->iterator->cmd, curr_stream, true);
+					add_command(command, curr_stream->iterator->cmd, curr_stream, true, false);
 					bzero(command,5000000);
 				}
 			}
@@ -637,7 +700,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		curr_stream->iterator = curr_stream->iterator->next;
 		curr_stream->iterator->cmd = (command_t) malloc(sizeof(struct command));
 		//LINE = LINE + 1;
-		add_command(command, curr_stream->iterator->cmd, curr_stream, true);
+		add_command(command, curr_stream->iterator->cmd, curr_stream, true, false);
 	} 
 //	printf("Total Lines: %d\n", LINE);
 //printf("%s\n", command);
@@ -658,7 +721,6 @@ read_command_stream (command_stream_t s)
  // error (1, 0, "command reading not yet implemented");
 if(s==NULL)
 		return NULL;
-
 	//iterates through the commands and sets the next iterator
 	if(s->iterator!=NULL){
 		command_t cmd;
@@ -670,3 +732,15 @@ if(s==NULL)
 	//printf("Lines %d\n", LINE);
 	return NULL;
 }
+int get_num_cmds(command_stream_t cs){
+	if(cs == NULL) return 0;
+	int ret = 0;
+	cmd_node* iter = cs->iterator;
+	while(iter != NULL)
+	{
+		ret++;
+		iter = iter->next;
+	}
+	return ret;
+}
+

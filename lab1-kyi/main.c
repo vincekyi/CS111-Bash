@@ -4,11 +4,11 @@
 #include <error.h>
 #include <getopt.h>
 #include <stdio.h>
-
 #include "command.h"
-
+#include <stdlib.h>
 static char const *program_name;
 static char const *script_name;
+
 
 static void
 usage (void)
@@ -51,6 +51,9 @@ main (int argc, char **argv)
   command_stream_t command_stream =
     make_command_stream (get_next_byte, script_stream);
 
+  int numc = get_num_cmds(command_stream);
+  
+  init(numc);
   command_t last_command = NULL;
   command_t command;
   while ((command = read_command_stream (command_stream)))
@@ -63,10 +66,12 @@ main (int argc, char **argv)
 	}
       else
 	{
-	  last_command = command;
-//	  execute_command (command, time_travel);
+		execute_command(command, time_travel);
+//	  last_command = command;
+	 // if(!execute_command(command, time_travel)) { exit(1); }
 	}
     }
+    finish_dep();
     cleanup(command_stream);
   return print_tree || !last_command ? 0 : command_status (last_command);
 }
