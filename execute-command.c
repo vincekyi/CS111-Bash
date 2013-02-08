@@ -29,6 +29,45 @@ int command_status (command_t c)
   return c->status;
 }
 
+void dashO_output(char* cmd, char* output){
+  int i, j;
+  int rm = 0;
+  int start = 0, end = 0;
+  int len = strlen(cmd);
+  int notBlank =  0;
+  for(i = 0; i < len; i++){
+    //if there is a '-o'
+    if(cmd[i]=='-' && i+1<len && cmd[i+1]=='o'){
+      rm = i; //where the -o starts
+      //get the index of the output
+      for(j=i+2; j<len; j++){
+        if(notBlank == 0 && cmd[j]!=' ') {
+          notBlank = 1;
+          start = j;
+        }
+        else if(notBlank && cmd[j]==' '){
+          end = j;
+          break;
+        }
+      }
+      break;
+
+    }
+  }
+  //if the output is at the end of the command
+  if(start!=0 && end == 0)
+    end = len;
+  bzero(output, 30);
+  //if there is a -o option, copy in the output
+  if(start)
+    strncpy(output, cmd+start, end-start);
+  for(i = rm; i<end; i++) {
+    cmd[i] = ' ';
+  }
+  
+}
+
+
 int execute(char* command, char* input, char* output);
  
 int execute_command (command_t c, bool time_travel) {
@@ -216,6 +255,9 @@ int execute(char* command, char* input, char* output) {
     if(command == NULL) { return 0; }
     char* term = strtok(command, " ");
     
+    char dO_output[30];
+    bzero(dO_output, 30);
+    dashO_output(command, dO_output);
     int orig = dup(1);
     int fp = -1, fd = -1;
     if(input != NULL) {
@@ -227,7 +269,21 @@ int execute(char* command, char* input, char* output) {
       }
       dup2(fd, 0);
     }
-    if(output != NULL) { 
+    if(strlen(dO_output)) {
+      fp = open(dO_output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+      if(fp < 0) {
+          close(fp);
+          error(0, 0, "Failed to open file: %s\n", dO_output);
+          return 0;
+      }
+      dup2(fp, 1);
+      //create an empty file
+      if(output!=NULL) {
+        int temp_fd = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        close(temp_fd);
+      }
+    }
+    else if(output != NULL) { 
       fp = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0666);
       if(fp < 0) {
           close(fp);

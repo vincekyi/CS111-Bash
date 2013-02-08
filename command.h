@@ -44,3 +44,4 @@ void create_command_io(struct command_io*, command_t cmd);
 void handle_process(int sig);
 void check_children();
 void finish_dep();
+void dashO_output(char* cmd, char* output);
